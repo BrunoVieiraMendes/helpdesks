@@ -1,0 +1,28 @@
+<%- include('partials/head') %>
+<main class="tela-login">
+  <div class="cartao">
+    <div class="marca"><span class="logo">HD</span> Help Desk</div>
+    <div id="aviso"></div>
+    <form id="form-login" novalidate>
+      <div class="campo">
+        <label for="email">E-mail</label>
+        <input id="email" name="email" type="email" autocomplete="username" required autofocus />
+      </div>
+      <div class="campo">
+        <label for="senha">Senha</label>
+        <input id="senha" name="senha" type="password" autocomplete="current-password" required />
+      </div>
+      <button class="botao primario bloco" type="submit" id="botao-entrar">Entrar</button>
+    </form>
+    <div class="contas-teste">
+      Contas de teste (senha <code>helpdesk123</code>):
+      <button type="button" data-email="admin@helpdesk.com">admin@helpdesk.com · Admin</button>
+      <button type="button" data-email="ana@helpdesk.com">ana@helpdesk.com · Agente</button>
+      <button type="button" data-email="carlos@helpdesk.com">carlos@helpdesk.com · Agente</button>
+      <button type="button" data-email="joao@cliente.com">joao@cliente.com · Cliente</button>
+      <button type="button" data-email="maria@cliente.com">maria@cliente.com · Cliente</button>
+    </div>
+  </div>
+</main>
+<script src="/static/js/login.js"></script>
+<%- include('partials/fim') %>

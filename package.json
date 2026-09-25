@@ -1,0 +1,48 @@
+{
+  "name": "helpdesk",
+  "version": "0.1.0",
+  "description": "Help Desk com fila de chamados (Lista + Kanban), inspirado no Movidesk. Mesma stack do Cryptotrade.",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon ./app.js",
+    "seed": "node ./seed",
+    "db:indices": "node ./scripts/sincroniza-indices",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "maildev": "maildev",
+    "demo:relatorios": "node ./scripts/gera-demonstracao"
+  },
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "bcrypt": "^5.0.1",
+    "bull": "^4.16.5",
+    "dotenv": "^16.0.1",
+    "ejs": "^6.0.1",
+    "express": "^4.18.1",
+    "http-errors": "^2.0.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^6.5.3",
+    "nodemailer": "^10.0.10",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "swagger-jsdoc": "^6.3.0",
+    "swagger-ui-express": "^5.0.1",
+    "winston": "^3.8.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^9.1.0",
+    "globals": "^15.0.0",
+    "maildev": "^3.0.0-rc.2",
+    "nodemon": "^2.0.19",
+    "prettier": "^3.3.0"
+  }
+}

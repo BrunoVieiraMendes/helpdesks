@@ -1,0 +1,15 @@
+<%- include('partials/head') %>
+<%- include('partials/navbar') %>
+<main class="pagina larga pagina-inicio">
+  <div class="saudacao">
+    <div>
+      <h1>Olá, <span id="nome-saudacao"></span>.</h1>
+      <p>Que bom te ver por aqui! :)</p>
+    </div>
+    <div class="bandeiras" id="bandeiras" aria-label="Alertas da fila"></div>
+  </div>
+  <p class="instrucao-inicio">Para ver os contadores de chamados, expanda os indicadores que deseja acompanhar.</p>
+  <div id="conteudo"></div>
+</main>
+<script src="/static/js/inicio.js"></script>
+<%- include('partials/fim') %>

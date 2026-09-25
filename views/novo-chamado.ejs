@@ -1,0 +1,64 @@
+<%- include('partials/head') %>
+<%- include('partials/navbar') %>
+<main class="pagina">
+  <div class="cabecalho-pagina">
+    <div>
+      <h1>Abrir Novo Chamado</h1>
+      <p>Escolha o serviço. Ele define a equipe que vai cuidar da sua solicitação.</p>
+    </div>
+  </div>
+
+  <div id="aviso"></div>
+
+  <section id="passo-servico">
+    <p class="passo">1. Qual serviço você precisa?</p>
+    <div class="catalogo" id="catalogo" role="group" aria-label="Catálogo de serviços"></div>
+  </section>
+
+  <form class="cartao formulario oculto" id="form-chamado" novalidate>
+    <p class="passo">2. Descreva a solicitação</p>
+    <div class="servico-escolhido" id="servico-escolhido"></div>
+
+    <div class="oculto" id="campos-equipe">
+      <div class="linha-campos">
+        <div class="campo">
+          <label for="solicitante">Solicitante (cliente)</label>
+          <select id="solicitante" name="solicitante"></select>
+          <span class="ajuda">Em branco = você mesmo</span>
+        </div>
+        <div class="campo">
+          <label for="prioridade">Prioridade</label>
+          <select id="prioridade" name="prioridade"></select>
+        </div>
+        <div class="campo">
+          <label for="responsavel">Responsável</label>
+          <select id="responsavel" name="responsavel"></select>
+          <span class="ajuda">Somente membros da equipe do serviço</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="campo">
+      <label for="titulo">Título</label>
+      <input id="titulo" name="titulo" maxlength="150" placeholder="Resumo do problema" required />
+    </div>
+    <div class="campo">
+      <label for="categoria">Categoria</label>
+      <select id="categoria" name="categoria"></select>
+    </div>
+    <div class="campo">
+      <label for="descricao">Descrição</label>
+      <textarea id="descricao" name="descricao" rows="7" placeholder="O que aconteceu? Quando começou? Qual mensagem de erro aparece?" required></textarea>
+    </div>
+    <div class="campos-adicionais" id="campos-adicionais"></div>
+    <input type="hidden" name="servico" />
+
+    <div class="acoes-form">
+      <a class="botao" href="javascript:history.back()">Cancelar</a>
+      <button class="botao primario" type="submit" id="botao-enviar">Abrir chamado</button>
+    </div>
+  </form>
+</main>
+<script src="/static/js/campos.js"></script>
+<script src="/static/js/novo-chamado.js"></script>
+<%- include('partials/fim') %>

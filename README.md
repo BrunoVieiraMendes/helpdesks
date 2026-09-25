@@ -1,0 +1,199 @@
+# Help Desk
+
+Sistema de atendimento com fila de chamados, inspirado no Movidesk: catálogo de serviços que encaminha cada chamado para uma equipe, portal do cliente, fila em Lista e Kanban com drag and drop, timeline com respostas públicas e notas internas, painel de administração e registro de SLA.
+
+Stack igual à do Cryptotrade: Node.js + Express + MongoDB (Mongoose) + Passport JWT + Bull (Redis) + Nodemailer + Winston + Swagger. As telas usam EJS com JavaScript puro, sem framework de frontend.
+
+## Requisitos
+
+- Node.js 18+
+- MongoDB
+- Redis (para as filas de e-mail e o fechamento automático)
+
+## Instalação
+
+```bash
+npm install
+cp .env.example .env      # ajuste MONGO_URL, REDIS_URL, JWT_SECRET_KEY...
+npm run db:indices        # cria os índices declarados nos schemas
+npm run seed              # usuários, categorias e chamados de exemplo
+```
+
+## Como rodar
+
+```bash
+npm run dev               # desenvolvimento (nodemon)
+npm start                 # produção
+npm run maildev           # opcional: caixa de e-mails em http://localhost:1080
+```
+
+Acesse http://localhost:3000. A documentação da API fica em http://localhost:3000/v1/docs.
+
+Sem Redis? Use `WORKERS_ATIVOS=false` no `.env`. Tudo continua funcionando, mas sem os e-mails e sem o fechamento automático.
+
+## Usuários de teste (senha `helpdesk123`)
+
+| E-mail              | Papel                       |
+| ------------------- | --------------------------- |
+| admin@helpdesk.com  | Admin                       |
+| ana@helpdesk.com    | Agente (Suporte, Auditoria) |
+| carlos@helpdesk.com | Agente (TI, Suporte)        |
+| joao@cliente.com    | Cliente                     |
+| maria@cliente.com   | Cliente                     |
+
+## Telas
+
+| Rota                         | Quem acessa                                                                                  |
+| ---------------------------- | -------------------------------------------------------------------------------------------- |
+| `/login`                     | todos                                                                                        |
+| `/inicio`                    | equipe: página Início (contadores, bandeiras de alerta, mural de avisos, indicadores do dia) |
+| `/relatorios`                | equipe: indicadores e relatórios (visão geral, SLA, equipes e agentes, satisfação, CSV)      |
+| `/portal`                    | cliente: Meus Chamados                                                                       |
+| `/chamados/novo`             | todos: catálogo de serviços + formulário. A equipe pode abrir em nome de um cliente          |
+| `/agente`                    | equipe: Lista com filtros combinados (ficam salvos na URL)                                   |
+| `/agente/kanban`             | equipe: arrastar e soltar entre status                                                       |
+| `/chamados/:numero`          | chamado no layout do Movidesk: painel Público/Interno, editor de ações e histórico           |
+| `/admin`                     | admin: painel de configurações (busca, visão por grupo ou A-Z, números da conta)             |
+| `/admin/configuracoes#secao` | admin: cada cadastro/parâmetro (pessoas, empresas, equipes, SLA, macros...)                  |
+
+A navegação fica no **menu lateral** de ícones. Para a equipe, os chamados e as configurações abertos viram **abas** no topo (o **+** abre um novo chamado, a fila ou as configurações).
+
+## Indicadores e relatórios
+
+Em `/relatorios` (ícone de gráfico no menu lateral), sempre dentro do que o usuário pode ver:
+
+- **Filtros numa linha:** período (hoje, 7/30/90 dias, este mês, mês passado ou personalizado, até 366 dias), equipe, serviço, agente e urgência. Ficam na URL, então dá para compartilhar o link.
+- **Visão geral:** abertos e resolvidos (com variação contra o período anterior), em aberto agora, tempos médios de 1ª resposta e de solução, SLA cumprido e satisfação; gráfico por dia (por semana acima de 62 dias), fila por status, distribuição por urgência, serviço, equipe e categoria, e mapa de calor de dia da semana x hora.
+- **SLA:** solução no prazo por semana e por urgência (com a meta configurada).
+- **Equipes e agentes:** desempenho por equipe e ranking de agentes (ordenável).
+- **Satisfação:** nota média, CSAT (notas 4 e 5), taxa de resposta, distribuição das notas e comentários.
+- **Relatório de chamados:** lista paginada (abertos ou resolvidos no período) e **exportação CSV** para o Excel.
+
+**Exportação para CSV** (ponto e vírgula, UTF-8 com BOM e vírgula decimal: abre direto no Excel em português), sempre com o período e os filtros da tela:
+
+- **Exportar indicadores (CSV)**, no topo da página, gera um único arquivo com uma seção por indicador: filtros aplicados, resumo (com o período anterior), série diária, fila por status, distribuição por urgência/serviço/equipe/categoria, mapa de calor, SLA por semana e por urgência, equipes, agentes, notas de satisfação e comentários. API: `GET /v1/relatorios/indicadores.csv`.
+- O botão **CSV** de cada quadro baixa só os dados daquele quadro (a mesma tabela do "Ver tabela").
+- No **Relatório de chamados**, o CSV traz um chamado por linha (até 10.000). API: `GET /v1/relatorios/chamados.csv`.
+
+Todo gráfico tem tooltip e o botão **Ver tabela**. O acesso depende da permissão "Ver indicadores e relatórios" do perfil de acesso (liberada por padrão).
+
+Para ver os gráficos cheios num banco de teste, `npm run demo:relatorios` cria 400 chamados históricos com a tag "Demonstração" (`npm run demo:relatorios -- --quantidade 800 --dias 180` para mais; `npm run demo:relatorios -- --remover` apaga todos). Não roda com `NODE_ENV=production`.
+
+## Notificações
+
+O **sino** na barra do topo (agentes e admins) avisa quando um chamado é **aberto** ou **transferido** para uma equipe da qual a pessoa faz parte. Quem fez a ação não recebe o próprio aviso.
+
+- Mostra um contador de não lidas, que também aparece no título da aba, por exemplo "(2) Início". Clicar no sino abre a lista das 20 mais recentes, e cada item leva ao chamado.
+- A lista é consultada a cada 30 segundos enquanto a aba está visível. O que chega de novo aparece como aviso na tela. Com a aba em segundo plano, aparece como **notificação da área de trabalho**, depois que a pessoa clica em "Ativar notificações na área de trabalho" e permite no navegador.
+- Abrir o chamado marca as notificações dele como lidas. Também dá para "Marcar todas como lidas".
+- Funciona sem Redis. O e-mail para a equipe continua indo pela fila de notificações quando os workers estão ativos.
+- As notificações são apagadas automaticamente depois de 90 dias.
+- API: `GET /v1/notificacoes`, `POST /v1/notificacoes/{id}/lida` e `POST /v1/notificacoes/lidas` (aceita `{ chamado }` para marcar só as de um chamado).
+
+## Equipes e serviços
+
+- O **admin** cadastra as **equipes** (ex.: Suporte, TI, Auditoria) e define quem faz parte de cada uma. Um agente pode estar em várias equipes.
+- O admin monta o **catálogo de serviços**. Cada serviço aponta para a equipe que o atende.
+- Ao abrir um chamado, o cliente escolhe o serviço, e o chamado vai para a fila da equipe correspondente. Os agentes dessa equipe recebem um e-mail.
+- **Visibilidade:** o agente vê os chamados das equipes das quais faz parte e os que estão sob sua responsabilidade. O admin vê todos. As mudanças de equipe valem na hora, sem precisar de novo login.
+- O responsável precisa ser membro da equipe do chamado. O admin pode atender qualquer equipe.
+- **Transferência:** trocar a equipe ou o serviço na barra lateral move o chamado para outra fila. Se o responsável atual não fizer parte da nova equipe, o chamado fica sem responsável. Tudo é registrado na timeline.
+- **Remover ou desativar:**
+  - equipes, serviços, categorias e usuários sem uso podem ser removidos;
+  - quem já tem histórico só pode ser desativado, para a timeline continuar íntegra;
+  - uma equipe desativada tira os serviços dela do catálogo.
+
+**Atualizando um banco que já existia:** rode `npm run seed` de novo. Ele cria os cadastros de exemplo que ainda não existem (equipes, serviços, empresas, tags, justificativas, feriados e macros), calcula os prazos de SLA dos chamados antigos e associa cada chamado a uma equipe e à empresa do solicitante. O chamado vai para a equipe do responsável; se não tiver responsável, vai para Suporte. Os usuários e as equipes que você já ajustou não são alterados.
+
+## Configurações (inspiradas no Movidesk)
+
+O painel `/admin` reúne todos os grupos de configuração. Os itens marcados como "em breve" ainda não foram implementados (base de conhecimento, e-mail, chat, gatilhos etc.).
+
+| Grupo                  | Item                         | O que faz                                                                                    |
+| ---------------------- | ---------------------------- | -------------------------------------------------------------------------------------------- |
+| Conta                  | Empresa / Parâmetros         | nome da conta e dias até o fechamento automático de chamados resolvidos                      |
+| Conta                  | Mural de avisos              | recados para a equipe (Início) e para os clientes (portal), com validade                     |
+| Conta                  | Feriados                     | dias sem expediente (fixos ou recorrentes); botão para importar os nacionais do ano          |
+| Pessoas                | Pessoas, Empresas, Equipes   | clientes pertencem a uma empresa; o chamado guarda a empresa do solicitante                  |
+| Pessoas                | Perfis de acesso             | permissões de agentes e de clientes (ver abaixo); um perfil padrão por tipo                  |
+| Pessoas                | Cargos, Classificações       | cadastros informativos das pessoas (ex.: "Analista de Suporte", "Revenda / Parceiro")        |
+| Classificação          | Serviços, Categorias, Status | catálogo, tipos de chamado e o ciclo de status (somente leitura)                             |
+| Classificação          | Justificativas               | motivo obrigatório ao mover para um status (ex.: Pendente → "Aguardando cliente")            |
+| Classificação          | Tags                         | etiquetas coloridas da equipe (o cliente não vê); dá para filtrar a fila por tag             |
+| Campos adicionais      | Campos                       | campos extras do chamado (texto, número, data, sim/não, lista de valores, lista de pessoas)  |
+| Campos adicionais      | Regras para exibição         | quando cada campo aparece (serviço, categoria ou valor de outro campo) e se fica obrigatório |
+| Acordos / Urgências    | SLA                          | expediente, fuso e prazos de 1ª resposta e solução por urgência, em horas úteis              |
+| Automação              | Macros                       | resposta pronta + ações (status, justificativa, prioridade, equipe, atribuir a mim, tags)    |
+| Pesquisa de satisfação | Configurações de perguntas   | nota de 1 a 5 estrelas e comentário, pedidos ao cliente quando o chamado é resolvido         |
+
+Todos os cadastros usam a mesma lista: **Id** numérico, contagem de registros, botão **+**, menu **Opções** (habilitar, desabilitar ou remover os selecionados), busca a partir de 3 caracteres, ordenação clicando no cabeçalho e clique na linha para editar. O Id é sequencial por cadastro; registros antigos recebem o seu na inicialização do servidor.
+
+### Campos adicionais e regras para exibição
+
+- Um campo que **nenhuma regra ativa cita aparece sempre**. Se alguma regra o cita, ele só aparece quando uma delas casar com o chamado.
+- Uma regra casa quando o serviço, a categoria e o valor do campo da condição batem. Condição em branco vale para qualquer valor. A regra pode tornar os campos obrigatórios.
+- O formulário de abertura mostra e esconde os campos ao vivo (a mesma lógica roda em `public/js/campos.js` e em `services/campos-adicionais.js`, e a API valida de novo).
+- Campos marcados como **visíveis para o cliente** aparecem na abertura feita pelo cliente e no detalhe do chamado dele. Os demais, e o histórico de alterações dos campos, ficam só com a equipe.
+- A equipe edita os campos na barra lateral do chamado; cada alteração vira um evento na timeline.
+- Um campo que já foi preenchido em algum chamado não pode mudar de tipo nem ser removido (desabilite).
+
+### Perfis de acesso
+
+Cada agente ou cliente pode ter um perfil. Quem não tem usa o **perfil padrão** do seu tipo; sem perfil padrão, valem as permissões padrão do sistema (`PERMISSOES` em `constants.js`). Administradores têm acesso total e não usam perfil. Mudanças no perfil valem na próxima requisição, sem novo login.
+
+| Perfil de | Permissão                                | Padrão |
+| --------- | ---------------------------------------- | ------ |
+| Agente    | Ver chamados de todas as equipes         | não    |
+| Agente    | Abrir chamados em nome de clientes       | sim    |
+| Agente    | Alterar a prioridade dos chamados        | sim    |
+| Agente    | Transferir chamados de equipe ou serviço | sim    |
+| Agente    | Reabrir chamados fechados                | não    |
+| Agente    | Aplicar macros                           | sim    |
+| Cliente   | Abrir chamados                           | sim    |
+| Cliente   | Ver os chamados de toda a sua empresa    | não    |
+| Cliente   | Responder a pesquisa de satisfação       | sim    |
+
+A API valida cada permissão (403) e as telas escondem ou desabilitam o que o perfil não libera.
+
+## Regras de negócio
+
+- **RBAC:** o cliente só vê os próprios chamados (ou os da empresa, se o perfil permitir). Se tentar abrir o de outra pessoa, recebe 404. Agentes atendem a fila das suas equipes (ou todas, se o perfil permitir), e o admin tem acesso total, inclusive para administrar equipes, serviços, pessoas e demais cadastros. O restante do que cada um pode fazer vem do perfil de acesso.
+- **Status:** Novo, Em Atendimento, Pendente, Resolvido e Fechado. As transições permitidas estão em `constants.js`. Um chamado não volta para "Novo".
+- **Automatismos:**
+  - quando a equipe responde um chamado Novo, ele vai para Em Atendimento e quem respondeu vira o responsável;
+  - quando o cliente responde um chamado Pendente ou Resolvido, ele volta para Em Atendimento;
+  - um chamado Resolvido há mais de N dias (Configurações > Parâmetros; o valor inicial vem de `DIAS_PARA_FECHAMENTO_AUTOMATICO`) é fechado automaticamente.
+- **SLA:**
+  - `sla.primeiraRespostaEm` guarda a 1ª resposta pública da equipe e nunca é sobrescrita;
+  - `sla.resolvidoEm` e `sla.fechadoEm` acompanham o status e são zerados quando o chamado é reaberto;
+  - `sla.prazoPrimeiraResposta` e `sla.prazoSolucao` são calculados na abertura, em horário útil (expediente menos feriados), pelo acordo da urgência. Mudar a prioridade recalcula os prazos;
+  - em **Pendente** o relógio para: o tempo útil pausado é somado ao prazo de solução quando o chamado sai de Pendente;
+  - a fila mostra a situação (no prazo, em risco, vencido, pausado, cumprido) e tem os filtros `?sla=vencido` e `?sla=sem_resposta`.
+- **Justificativas:** se o status de destino tiver justificativas ativas, a API exige uma (422). A barra lateral e o Kanban pedem o motivo num diálogo. Mudanças automáticas (ex.: o cliente respondeu) não exigem.
+- **Macros:** as ações são aplicadas antes da mensagem; se alguma ação for inválida, nada é gravado. Macros não fecham chamados.
+- **Pesquisa de satisfação:** só o solicitante avalia, uma vez, com o chamado Resolvido ou Fechado.
+- **Timeline:** cada alteração vira um evento do tipo `sistema`. As notas internas e os eventos de tags são filtrados na própria consulta e nunca chegam ao cliente.
+- **Concorrência:** as alterações usam update condicional. Se duas pessoas mudam o mesmo campo ao mesmo tempo, a segunda recebe 409.
+
+## Estrutura
+
+```
+app.js              Express, passport, rotas, error handler central
+constants.js        status, prioridades, transições, papéis
+models/             schemas Mongoose + índices
+middlewares/        autentica, autoriza(papéis), carregaChamado (RBAC)
+services/           um caso de uso por arquivo
+routes/v1/          API REST (documentada com swagger-jsdoc)
+routes/paginas.js   páginas EJS
+workers/            filas Bull: notificações por e-mail e fechamento automático
+emails/             templates EJS de e-mail
+views/, public/     telas (EJS + JS puro + CSS)
+scripts/            sincronização de índices
+```
+
+## Qualidade
+
+```bash
+npm run lint
+npm run format:check
+```

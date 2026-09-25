@@ -1,0 +1,7 @@
+<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#1f2937">
+  <h2 style="color:#2458d6">Novo chamado na fila <%= chamado.equipe.nome %></h2>
+  <p><strong>#<%= chamado.numero %> · <%= chamado.titulo %></strong></p>
+  <p>Solicitante: <%= chamado.solicitante.nome %><br />Serviço: <%= chamado.servico ? chamado.servico.nome : '—' %></p>
+  <blockquote style="border-left:3px solid #2458d6;margin:0;padding:8px 12px;background:#f3f4f6;white-space:pre-wrap"><%= chamado.descricao %></blockquote>
+  <p><a href="<%= urlDoHelpdesk %>/chamados/<%= chamado.numero %>" style="background:#2458d6;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none">Abrir chamado</a></p>
+</div>

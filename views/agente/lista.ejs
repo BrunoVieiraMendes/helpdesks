@@ -1,0 +1,21 @@
+<%- include('../partials/head') %>
+<%- include('../partials/navbar') %>
+<main class="pagina larga">
+  <div class="cabecalho-pagina">
+    <div>
+      <h1>Fila de Chamados</h1>
+      <p id="resumo">&nbsp;</p>
+    </div>
+    <a class="botao primario" href="/chamados/novo">+ Novo chamado</a>
+  </div>
+
+  <section class="cartao filtros" id="filtros"></section>
+
+  <section class="cartao">
+    <div class="tabela-container" id="conteudo"></div>
+    <div class="paginacao" id="paginacao"></div>
+  </section>
+</main>
+<script src="/static/js/filtros.js"></script>
+<script src="/static/js/lista.js"></script>
+<%- include('../partials/fim') %>

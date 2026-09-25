@@ -1,0 +1,25 @@
+<%- include('../partials/head') %>
+<%- include('../partials/navbar') %>
+<main class="pagina">
+  <div class="cabecalho-pagina">
+    <div>
+      <h1>Meus Chamados</h1>
+      <p>Acompanhe o andamento das suas solicitações.</p>
+    </div>
+    <a class="botao primario" href="/chamados/novo">+ Abrir Novo Chamado</a>
+  </div>
+
+  <div id="avisos-portal"></div>
+
+  <div class="chips" style="margin-bottom: 12px" role="group" aria-label="Filtrar chamados">
+    <button class="chip" data-filtro="abertos" aria-pressed="true">Em aberto</button>
+    <button class="chip" data-filtro="todos" aria-pressed="false">Todos</button>
+  </div>
+
+  <section class="cartao">
+    <div class="tabela-container" id="conteudo"></div>
+    <div class="paginacao" id="paginacao"></div>
+  </section>
+</main>
+<script src="/static/js/portal.js"></script>
+<%- include('../partials/fim') %>

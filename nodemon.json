@@ -1,0 +1,13 @@
+{
+  "watch": [
+    "app.js",
+    "constants.js",
+    "models",
+    "routes",
+    "services",
+    "middlewares",
+    "utils",
+    "workers"
+  ],
+  "ext": "js,json"
+}

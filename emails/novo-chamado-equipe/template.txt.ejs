@@ -1,0 +1,9 @@
+Novo chamado na fila <%= chamado.equipe.nome %>
+
+#<%= chamado.numero %> · <%= chamado.titulo %>
+Solicitante: <%= chamado.solicitante.nome %>
+Serviço: <%= chamado.servico ? chamado.servico.nome : '—' %>
+
+<%= chamado.descricao %>
+
+Abrir: <%= urlDoHelpdesk %>/chamados/<%= chamado.numero %>

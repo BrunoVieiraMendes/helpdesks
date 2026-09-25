@@ -1,0 +1,18 @@
+<%- include('../partials/head') %>
+<%- include('../partials/navbar') %>
+<main class="pagina larga">
+  <div class="cabecalho-pagina">
+    <div>
+      <h1>Kanban</h1>
+      <p>Arraste os cards entre as colunas para mudar o status.</p>
+    </div>
+    <a class="botao primario" href="/chamados/novo">+ Novo chamado</a>
+  </div>
+
+  <section class="cartao filtros" id="filtros"></section>
+
+  <div id="conteudo"></div>
+</main>
+<script src="/static/js/filtros.js"></script>
+<script src="/static/js/kanban.js"></script>
+<%- include('../partials/fim') %>

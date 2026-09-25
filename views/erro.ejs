@@ -1,0 +1,9 @@
+<%- include('partials/head', { titulo: 'Erro', dominio: {}, area: '', aba: '' }) %>
+<main class="tela-login">
+  <div class="cartao">
+    <h1><%= status %></h1>
+    <p class="suave"><%= mensagem %></p>
+    <a class="botao primario" href="/login">Voltar ao início</a>
+  </div>
+</main>
+<%- include('partials/fim') %>

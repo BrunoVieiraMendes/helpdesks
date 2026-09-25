@@ -1,0 +1,31 @@
+<%- include('../partials/head') %>
+<%- include('../partials/navbar') %>
+<main class="pagina larga pagina-config">
+
+  <section class="config-conteudo">
+    <div class="cabecalho-lista">
+      <div class="titulo-lista">
+        <h1 id="titulo-secao">&nbsp;</h1>
+        <p class="contagem" id="contagem">&nbsp;</p>
+        <p class="suave ajuda-lista" id="ajuda-secao" hidden></p>
+      </div>
+      <div class="barra-admin" id="barra"></div>
+    </div>
+    <div id="conteudo"></div>
+  </section>
+</main>
+
+<dialog class="modal" id="modal">
+  <form method="dialog" id="form-modal" novalidate>
+    <h2 id="modal-titulo"></h2>
+    <div id="modal-aviso"></div>
+    <div id="modal-campos"></div>
+    <div class="acoes-form">
+      <button class="botao" type="button" id="modal-cancelar">Cancelar</button>
+      <button class="botao primario" type="submit" id="modal-salvar">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="/static/js/admin.js"></script>
+<%- include('../partials/fim') %>

@@ -1,0 +1,19 @@
+<%- include('partials/head') %>
+<%- include('partials/navbar') %>
+<main class="pagina larga pagina-relatorios">
+  <div class="cabecalho-pagina">
+    <div>
+      <h1>Indicadores e relatórios</h1>
+      <p id="descricao-periodo">&nbsp;</p>
+    </div>
+    <button type="button" class="botao primario" id="exporta-indicadores" title="Todos os indicadores do período e filtros atuais em um arquivo">
+      Exportar indicadores (CSV)
+    </button>
+  </div>
+  <section class="filtros-relatorio" id="filtros-relatorio" aria-label="Filtros"></section>
+  <nav class="abas-relatorio" id="abas-relatorio" role="tablist" aria-label="Indicadores"></nav>
+  <div class="conteudo-relatorio" id="conteudo"></div>
+</main>
+<script src="/static/js/graficos.js"></script>
+<script src="/static/js/relatorios.js"></script>
+<%- include('partials/fim') %>
