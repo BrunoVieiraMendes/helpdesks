@@ -9,6 +9,7 @@ const { montaFiltroDeChamados } = require('./lista-chamados');
 const { STATUS_ABERTOS } = require('./regras-chamado');
 const { obtemConfiguracao } = require('./configuracao');
 const { POPULA_CHAMADO } = require('./busca-chamado');
+const { ehAdmin } = require('./permissoes');
 
 const DIA = 24 * 60 * 60 * 1000;
 const MAXIMO_DE_DIAS = 366;
@@ -445,7 +446,7 @@ const indicadores = async (query, usuario) => {
   const sla = slaResolvidos[0] || { total: 0, noPrazo: 0 };
   const resposta = slaResposta[0] || { noPrazo: 0, atrasadas: 0 };
 
-  return {
+  const dados = {
     periodo: {
       de: periodo.de,
       ate: periodo.ate,
@@ -552,6 +553,13 @@ const indicadores = async (query, usuario) => {
       })),
     },
   };
+  // desempenho por equipe/agente e satisfação: só o admin vê
+  if (!ehAdmin(usuario)) {
+    delete dados.agentes;
+    delete dados.equipes;
+    delete dados.satisfacao;
+  }
+  return dados;
 };
 
 // ---------------------------------------------------------------- relatório de chamados (lista + CSV)
@@ -711,7 +719,8 @@ const csvDeIndicadores = async (query, usuario) => {
   const r = d.resumo;
   const linhas = [];
   const secao = (titulo, cabecalho, dados) => {
-    linhas.push([titulo], cabecalho, ...dados, []);
+    // seção sem dados (ex.: restrita ao admin) fica de fora
+    if (dados) linhas.push([titulo], cabecalho, ...dados, []);
   };
 
   // filtros aplicados, com nomes legíveis
@@ -836,7 +845,7 @@ const csvDeIndicadores = async (query, usuario) => {
       'Tempo médio de solução (horas)',
       'SLA cumprido (%)',
     ],
-    d.equipes.map((q) => [
+    d.equipes?.map((q) => [
       q.nome,
       q.abertos,
       q.resolvidos,
@@ -856,7 +865,7 @@ const csvDeIndicadores = async (query, usuario) => {
       'Nota média',
       'Avaliações',
     ],
-    d.agentes.map((a) => [
+    d.agentes?.map((a) => [
       a.nome,
       a.resolvidos,
       a.emAberto,
@@ -871,7 +880,7 @@ const csvDeIndicadores = async (query, usuario) => {
   secao(
     'Satisfação',
     ['Indicador', 'Valor'],
-    [
+    s && [
       ['Avaliações recebidas', s.total],
       ['Nota média (1 a 5)', num(s.media)],
       ['Clientes satisfeitos - CSAT, notas 4 e 5 (%)', num(s.csat)],
@@ -882,7 +891,7 @@ const csvDeIndicadores = async (query, usuario) => {
   secao(
     'Comentários recentes',
     ['Chamado', 'Título', 'Nota', 'Comentário', 'Cliente', 'Responsável', 'Data'],
-    s.comentarios.map((c) => [
+    s?.comentarios.map((c) => [
       c.numero,
       c.titulo,
       c.nota,

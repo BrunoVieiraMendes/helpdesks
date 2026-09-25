@@ -1,25 +1,60 @@
 <%- include('../partials/head') %>
 <%- include('../partials/navbar') %>
-<main class="pagina">
-  <div class="cabecalho-pagina">
-    <div>
-      <h1>Meus Chamados</h1>
-      <p>Acompanhe o andamento das suas solicitações.</p>
-    </div>
-    <a class="botao primario" href="/chamados/novo">+ Abrir Novo Chamado</a>
+<main class="pagina larga pagina-fila">
+  <div class="fila-layout" id="fila-layout">
+    <aside class="painel-visoes" id="painel-visoes" aria-label="Visualizações">
+      <div class="cabeca-visoes">
+        <span class="titulo-visoes" id="titulo-painel">Meus chamados</span>
+        <button type="button" class="botao-recolher" id="recolher-visoes" title="Recolher painel" aria-label="Recolher painel" aria-expanded="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 6-6 6 6 6" /></svg>
+        </button>
+      </div>
+      <nav class="lista-visoes" id="visoes"></nav>
+    </aside>
+
+    <section class="area-fila">
+      <div class="cabeca-fila">
+        <button type="button" class="botao-recolher mostrar" id="mostrar-visoes" title="Mostrar visualizações" aria-label="Mostrar visualizações" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 6 6 6-6 6" /></svg>
+        </button>
+        <div class="titulo-fila">
+          <h1 id="titulo-visao">Chamados em aberto</h1>
+          <p class="contagem" id="resumo">&nbsp;</p>
+        </div>
+        <div class="acoes-fila">
+          <a class="botao primario botao-abrir-chamado" href="/chamados/novo">+ Abrir novo chamado</a>
+          <div class="busca-fila">
+            <div class="linha-busca">
+              <input type="search" id="busca-fila" placeholder="Pesquisar por nº ou assunto" aria-label="Pesquisar chamados" autocomplete="off" />
+              <button type="button" class="botao-icone-fila" id="botao-buscar" title="Pesquisar" aria-label="Pesquisar">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+              </button>
+              <button type="button" class="botao-icone-fila" id="botao-limpar" title="Limpar busca" aria-label="Limpar busca">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 5 5-9.5 9.5H6l-2-2a1.5 1.5 0 0 1 0-2.1z" /><path d="M9 20h11" /></svg>
+              </button>
+            </div>
+            <span class="ajuda-busca">Digite pelo menos 3 caracteres para iniciar a busca.</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="avisos-portal"></div>
+
+      <section class="cartao tabela-fila">
+        <div class="tabela-container" id="conteudo"></div>
+        <div class="rodape-fila">
+          <label class="por-pagina">Exibir
+            <select id="por-pagina" aria-label="Chamados por página">
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </select>
+            por página</label>
+          <div class="paginacao" id="paginacao"></div>
+        </div>
+      </section>
+    </section>
   </div>
-
-  <div id="avisos-portal"></div>
-
-  <div class="chips" style="margin-bottom: 12px" role="group" aria-label="Filtrar chamados">
-    <button class="chip" data-filtro="abertos" aria-pressed="true">Em aberto</button>
-    <button class="chip" data-filtro="todos" aria-pressed="false">Todos</button>
-  </div>
-
-  <section class="cartao">
-    <div class="tabela-container" id="conteudo"></div>
-    <div class="paginacao" id="paginacao"></div>
-  </section>
 </main>
 <script src="/static/js/portal.js"></script>
 <%- include('../partials/fim') %>

@@ -465,17 +465,18 @@
     }
   });
 
-  function mostraPainel(visivel) {
+  // lembrar = escolha da pessoa (o tamanho da tela no primeiro acesso não vira preferência)
+  function mostraPainel(visivel, lembrar) {
     Ui.$('#fila-layout').classList.toggle('sem-painel', !visivel);
     Ui.$('#mostrar-visoes').hidden = visivel;
     Ui.$('#recolher-visoes').setAttribute('aria-expanded', String(visivel));
-    grava(CHAVE_PAINEL, visivel);
+    if (lembrar) grava(CHAVE_PAINEL, visivel);
   }
   Ui.$('#recolher-visoes').addEventListener('click', function () {
-    mostraPainel(false);
+    mostraPainel(false, true);
   });
   Ui.$('#mostrar-visoes').addEventListener('click', function () {
-    mostraPainel(true);
+    mostraPainel(true, true);
   });
 
   // ---------------------------------------------------------------- busca, filtros e opções

@@ -76,6 +76,11 @@
       icone: 'acordos',
       itens: [
         {
+          nome: 'Agentes online',
+          aba: 'online',
+          termos: 'presença conectados status quem está disponível',
+        },
+        {
           nome: 'SLA e urgências',
           aba: 'sla',
           termos: 'prazo expediente horário prioridade acordos',

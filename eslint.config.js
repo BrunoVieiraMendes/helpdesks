@@ -34,6 +34,7 @@ module.exports = [
         Abas: 'writable',
         Notificacoes: 'writable',
         BuscaGlobal: 'writable',
+        Presenca: 'writable',
         Graficos: 'writable',
         CamposAdicionais: 'writable',
         HD: 'readonly',
@@ -46,7 +47,7 @@ module.exports = [
           argsIgnorePattern: '^_',
           caughtErrorsIgnorePattern: '^_',
           varsIgnorePattern:
-            '^(Api|Ui|Filtros|Icones|Abas|Graficos|CamposAdicionais|Notificacoes|BuscaGlobal)$',
+            '^(Api|Ui|Filtros|Icones|Abas|Graficos|CamposAdicionais|Notificacoes|BuscaGlobal|Presenca)$',
         },
       ],
       // api.js / ui.js / filtros.js definem os globais compartilhados pelas páginas

@@ -3193,6 +3193,132 @@
     carregaLogEmail(1);
   }
 
+  // ================================================================ AGENTES ONLINE
+  // Presença dos agentes (sinal enviado a cada minuto pelo navegador de cada um).
+  // Atualiza sozinha enquanto a seção está aberta.
+  var ROTULOS_PRESENCA = { online: 'Online', ausente: 'Ausente', offline: 'Offline' };
+  var timerOnline = null;
+  var filtroOnline = '';
+
+  function paraTimerOnline() {
+    clearInterval(timerOnline);
+    timerOnline = null;
+  }
+
+  function descricaoPresenca(a) {
+    if (a.situacao === 'online') return 'Ativo agora';
+    if (a.situacao === 'ausente') {
+      return a.ativoEm ? 'Parado ' + Ui.relativo(a.ativoEm) : 'Sistema aberto, sem interação';
+    }
+    return a.vistoEm ? 'Visto ' + Ui.relativo(a.vistoEm) : 'Sem acesso recente';
+  }
+
+  function cartaoAgente(a) {
+    return (
+      '<li class="agente-presenca ' +
+      a.situacao +
+      '"><span class="avatar-presenca">' +
+      Ui.avatar(a) +
+      '<span class="bolinha-presenca" aria-hidden="true"></span></span>' +
+      '<span class="dados-presenca"><strong>' +
+      Ui.esc(a.nome) +
+      (a.papel === 'admin' ? ' <span class="selo-admin">Admin</span>' : '') +
+      '</strong><span class="suave">' +
+      Ui.esc(a.equipes.length ? a.equipes.join(', ') : 'Sem equipe') +
+      '</span></span>' +
+      '<span class="carga-presenca" title="Chamados em aberto sob a responsabilidade dele(a)"><strong>' +
+      a.emAberto +
+      '</strong><span class="suave">em aberto</span></span>' +
+      '<span class="estado-presenca"><span class="pilula-presenca ' +
+      a.situacao +
+      '">' +
+      ROTULOS_PRESENCA[a.situacao] +
+      '</span><span class="suave pequeno">' +
+      Ui.esc(descricaoPresenca(a)) +
+      '</span></span></li>'
+    );
+  }
+
+  async function carregaOnline() {
+    var alvo = Ui.$('#lista-presenca');
+    if (!alvo) return paraTimerOnline();
+    try {
+      var r = await Api.get('/presenca', { equipe: filtroOnline || undefined });
+      if (!Ui.$('#lista-presenca')) return paraTimerOnline();
+      ['online', 'ausente', 'offline'].forEach(function (s) {
+        Ui.$('#total-' + s).textContent = r.resumo[s];
+      });
+      Ui.$('#contagem').textContent =
+        r.resumo.online +
+        ' online · ' +
+        r.resumo.ausente +
+        ' ausente(s) · ' +
+        r.resumo.offline +
+        ' offline';
+      Ui.$('#atualizado-presenca').textContent =
+        'Atualizado às ' +
+        new Date(r.atualizadoEm).toLocaleTimeString('pt-BR', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        });
+      alvo.innerHTML = r.agentes.length
+        ? '<ul class="lista-presenca">' + r.agentes.map(cartaoAgente).join('') + '</ul>'
+        : Ui.vazio('Nenhum agente', 'Não há agentes ativos nesta equipe.');
+    } catch (e) {
+      alvo.innerHTML = Ui.erro(e.message);
+    }
+  }
+
+  async function secaoOnline() {
+    ajudaAtual =
+      'Quem está com o sistema aberto agora. Online: mexendo no sistema. Ausente: sistema aberto, mas parado há mais de 5 minutos ou em outra aba. Offline: fechou o sistema, saiu ou está sem sinal há mais de 3 minutos.';
+    mostraAjuda(ajudaAtual);
+    var equipes = (await Api.get('/equipes')).equipes;
+    barra.innerHTML =
+      '<div class="filtros-log"><select id="equipe-presenca" aria-label="Equipe">' +
+      Ui.opcoes(
+        equipes.map(function (e) {
+          return { valor: e._id, rotulo: e.nome };
+        }),
+        filtroOnline,
+        'Todas as equipes',
+      ) +
+      '</select><button type="button" class="botao" id="atualizar-presenca">Atualizar</button></div>';
+    conteudo.innerHTML =
+      '<div class="resumo-presenca">' +
+      ['online', 'ausente', 'offline']
+        .map(function (s) {
+          return (
+            '<div class="cartao total-presenca ' +
+            s +
+            '"><span class="pilula-presenca ' +
+            s +
+            '">' +
+            ROTULOS_PRESENCA[s] +
+            '</span><strong id="total-' +
+            s +
+            '">–</strong></div>'
+          );
+        })
+        .join('') +
+      '</div><section class="cartao cartao-presenca"><div class="cabeca-presenca"><h2>Agentes</h2>' +
+      '<span class="suave pequeno" id="atualizado-presenca"></span></div><div id="lista-presenca">' +
+      Ui.carregando() +
+      '</div></section>';
+
+    Ui.$('#equipe-presenca').addEventListener('change', function (e) {
+      filtroOnline = e.target.value;
+      carregaOnline();
+    });
+    Ui.$('#atualizar-presenca').addEventListener('click', carregaOnline);
+    await carregaOnline();
+    paraTimerOnline();
+    timerOnline = setInterval(function () {
+      if (!document.hidden) carregaOnline();
+    }, 20000);
+  }
+
   // ================================================================ seções e menu
   // campoAtivo/rota/rotulo/form só existem nos cadastros com Editar/Desativar/Remover
   var SECOES = {
@@ -3370,6 +3496,12 @@
       campoAtivo: 'ativa',
       rotulo: 'macro',
     },
+    online: {
+      grupo: 'Atendimento',
+      titulo: 'Agentes online',
+      descricao: 'Quem está com o sistema aberto agora.',
+      carrega: secaoOnline,
+    },
     email: {
       grupo: 'E-mail',
       titulo: 'E-mail',
@@ -3390,6 +3522,7 @@
   }
 
   async function renderizaSecao() {
+    paraTimerOnline(); // a atualização automática é só da seção "Agentes online"
     var nome = secaoAtual();
     var secao = SECOES[nome];
     Abas.abre({

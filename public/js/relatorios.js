@@ -18,7 +18,10 @@
     ['equipes', 'Equipes e agentes'],
     ['satisfacao', 'Satisfação'],
     ['chamados', 'Relatório de chamados'],
-  ];
+  ].filter(function (a) {
+    // desempenho de equipes/agentes e satisfação: só o admin vê
+    return usuario.papel === 'admin' || (a[0] !== 'equipes' && a[0] !== 'satisfacao');
+  });
   var PERIODOS = [
     ['hoje', 'Hoje'],
     ['7', 'Últimos 7 dias'],

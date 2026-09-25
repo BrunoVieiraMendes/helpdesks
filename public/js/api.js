@@ -125,7 +125,14 @@ var Api = (function () {
       return dados.usuario;
     },
     sair: function () {
-      encerraSessao();
+      // avisa que saiu (fica offline na hora) antes de apagar o token
+      var saindo = window.Presenca ? window.Presenca.sai() : Promise.resolve();
+      var limite = new Promise(function (resolve) {
+        setTimeout(resolve, 800);
+      });
+      Promise.race([saindo, limite]).then(function () {
+        encerraSessao();
+      });
     },
     usuario: function () {
       return memoria.usuario;

@@ -13,6 +13,10 @@ const {
   aplicaMacro,
   avaliaChamado,
 } = require('../../services');
+const {
+  editaChamadoDoCliente,
+  excluiChamadoDoCliente,
+} = require('../../services/edita-chamado-cliente');
 const { rota } = require('../../utils');
 const { PAPEIS_DA_EQUIPE } = require('../../constants');
 
@@ -176,6 +180,68 @@ router.patch(
     res.json({
       sucesso: true,
       chamado: await atualizaChamado(req.chamado, req.body || {}, req.user),
+    });
+  }),
+);
+
+/**
+ * @openapi
+ * /v1/chamados/{numero}/conteudo:
+ *   patch:
+ *     summary: Solicitante edita o próprio chamado (só enquanto Novo)
+ *     description: >
+ *       Título, descrição, serviço (define a equipe), categoria e campos adicionais visíveis ao cliente.
+ *       Depois que a equipe começa o atendimento (status diferente de Novo), responde 409.
+ *     tags: [chamados]
+ *     security: [{ auth: [] }]
+ *     parameters:
+ *       - $ref: '#/components/parameters/NumeroChamado'
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               titulo: { type: string }
+ *               descricao: { type: string }
+ *               servico: { type: string }
+ *               categoria: { type: string, nullable: true }
+ *               camposAdicionais: { type: object, additionalProperties: true }
+ *     responses:
+ *       200: { description: Chamado atualizado }
+ *       403: { description: Não é quem abriu o chamado }
+ *       409: { description: Chamado já não está mais Novo }
+ */
+/**
+ * @openapi
+ * /v1/chamados/{numero}:
+ *   delete:
+ *     summary: Solicitante exclui o próprio chamado (só enquanto Novo)
+ *     description: Apaga o chamado, a timeline e os avisos do sino. Depois do atendimento começar, responde 409.
+ *     tags: [chamados]
+ *     security: [{ auth: [] }]
+ *     parameters:
+ *       - $ref: '#/components/parameters/NumeroChamado'
+ *     responses:
+ *       200: { description: Excluído }
+ *       403: { description: Não é quem abriu o chamado }
+ *       409: { description: Chamado já não está mais Novo }
+ */
+router.delete(
+  '/:numero',
+  carregaChamado,
+  rota(async (req, res) => {
+    res.json({ sucesso: true, ...(await excluiChamadoDoCliente(req.chamado, req.user)) });
+  }),
+);
+
+router.patch(
+  '/:numero/conteudo',
+  carregaChamado,
+  rota(async (req, res) => {
+    res.json({
+      sucesso: true,
+      chamado: await editaChamadoDoCliente(req.chamado, req.body || {}, req.user),
     });
   }),
 );

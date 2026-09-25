@@ -194,6 +194,8 @@
           }),
           'normal',
         );
+        form.prioridade.classList.add('seletor-urgencia');
+        form.prioridade.setAttribute('data-urgencia', 'normal');
       }
 
       // atalho: /chamados/novo?servico=<id>

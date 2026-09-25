@@ -61,6 +61,17 @@ const UsuarioSchema = new Schema(
       ref: 'Classificacao',
       default: null,
     },
+    // presença (agentes/admins): o navegador avisa a cada minuto enquanto o sistema está aberto.
+    // vistoEm = último sinal; ativoEm = último sinal com a pessoa mexendo no sistema.
+    // Fora das consultas por padrão: só a tela "Agentes online" lê.
+    presenca: {
+      type: new Schema(
+        { vistoEm: { type: Date, default: null }, ativoEm: { type: Date, default: null } },
+        { _id: false },
+      ),
+      default: undefined,
+      select: false,
+    },
   },
   { timestamps: true },
 );

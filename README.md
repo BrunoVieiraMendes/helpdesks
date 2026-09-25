@@ -101,6 +101,18 @@ Em **Configurações > E-mail** (só admin):
 - `LEITURA_DE_EMAIL=false` desliga a leitura automática.
 - Anexos ainda não são importados. O chamado registra quantos havia.
 
+## Agentes online
+
+Em **Configurações > Atendimento > Agentes online** (só admin): quem está com o sistema aberto agora.
+
+- **Online:** mexendo no sistema.
+- **Ausente:** sistema aberto, mas parado há mais de 5 minutos ou em outra aba.
+- **Offline:** sem sinal há mais de 3 minutos, ou saiu do sistema.
+
+A tela mostra os totais de cada situação e, para cada agente, as equipes, os chamados em aberto sob a responsabilidade dele e quando foi visto por último. Ela se atualiza sozinha a cada 20 segundos e tem filtro por equipe.
+
+Como funciona: o navegador de cada agente manda um sinal a cada minuto (`POST /v1/presenca`); ao clicar em **Sair**, o agente fica offline na hora. A lista para o admin está em `GET /v1/presenca`. O sinal não altera a data de atualização do cadastro, e a presença não aparece nas outras listagens de usuários.
+
 ## Notificações
 
 O **sino** na barra do topo (agentes e admins) avisa quando um chamado é **aberto** ou **transferido** para uma equipe da qual a pessoa faz parte. Quem fez a ação não recebe o próprio aviso.

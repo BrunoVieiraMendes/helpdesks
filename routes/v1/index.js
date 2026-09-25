@@ -14,6 +14,7 @@ const configuracoesRouter = require('./configuracoes');
 const inicioRouter = require('./inicio');
 const relatoriosRouter = require('./relatorios');
 const notificacoesRouter = require('./notificacoes');
+const presencaRouter = require('./presenca');
 const rotasDeCadastro = require('./cadastros');
 const {
   empresas,
@@ -51,6 +52,7 @@ router.use('/configuracoes', autentica, configuracoesRouter);
 router.use('/inicio', autentica, inicioRouter);
 router.use('/relatorios', autentica, relatoriosRouter);
 router.use('/notificacoes', autentica, notificacoesRouter);
+router.use('/presenca', autentica, presencaRouter);
 
 // cadastros simples do painel de configurações (a equipe lê; só o admin altera)
 const cadastros = [

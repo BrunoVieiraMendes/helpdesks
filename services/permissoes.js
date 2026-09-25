@@ -58,6 +58,11 @@ const filtroDeVisibilidade = (usuario) => {
  * @param {UsuarioLogado} usuario
  * @param {{ pesquisa?: { ativa: boolean } }} [contexto]
  */
+const ehSolicitanteDeChamadoNovo = (chamado, usuario) =>
+  Boolean(usuario) &&
+  chamado.status === STATUS.NOVO &&
+  String(chamado.solicitante?._id ?? chamado.solicitante) === String(usuario._id);
+
 const permissoesDoChamado = (chamado, usuario, { pesquisa } = {}) => {
   const fechado = chamado.status === STATUS.FECHADO;
   const equipe = ehEquipe(usuario);
@@ -71,6 +76,9 @@ const permissoesDoChamado = (chamado, usuario, { pesquisa } = {}) => {
     podeTransferir: equipe && !fechado && pode(usuario, 'transferirChamados'),
     podeAlterarPrioridade: equipe && !fechado && pode(usuario, 'alterarPrioridade'),
     podeAplicarMacros: equipe && !fechado && pode(usuario, 'aplicarMacros'),
+    // quem abriu edita (texto e informações ao lado) e exclui enquanto o chamado está Novo
+    podeEditarConteudo: ehSolicitanteDeChamadoNovo(chamado, usuario),
+    podeExcluir: ehSolicitanteDeChamadoNovo(chamado, usuario),
     verNotasInternas: equipe,
     podeAvaliar: podeAvaliar(chamado, usuario, pesquisa),
   };

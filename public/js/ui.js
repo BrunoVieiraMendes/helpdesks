@@ -572,6 +572,7 @@ var Ui = (function () {
     // equipe: abas das páginas abertas; cliente: nome da central
     if (equipe) Abas.abre(null, { admin: admin });
     if (equipe && window.Notificacoes) Notificacoes.inicia();
+    if (equipe && window.Presenca) Presenca.inicia();
     if (window.BuscaGlobal) BuscaGlobal.inicia(usuario);
     else $('#abas').innerHTML = '<span class="titulo-topo">Central de atendimento</span>';
   }
@@ -609,6 +610,13 @@ var Ui = (function () {
       });
     });
   }
+
+  // campos de urgência coloridos: a cor acompanha a opção escolhida
+  document.addEventListener('change', function (e) {
+    if (e.target.matches && e.target.matches('select.seletor-urgencia')) {
+      e.target.setAttribute('data-urgencia', e.target.value);
+    }
+  });
 
   return {
     esc: esc,

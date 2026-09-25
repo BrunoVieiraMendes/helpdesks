@@ -52,7 +52,7 @@
       '<path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 9h4a1 1 0 0 1 1 1v11M3 21h18M8 8h3M8 12h3M8 16h3"/>',
     pessoa: '<circle cx="12" cy="8" r="4"/><path d="M4 21c.8-4 4-6 8-6s7.2 2 8 6"/>',
     chamado:
-      '<path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/>',
+      '<path d="M4 13v-1a8 8 0 0 1 16 0v1"/><rect x="3" y="12.5" width="4" height="6" rx="1.5"/><rect x="17" y="12.5" width="4" height="6" rx="1.5"/><path d="M19 18.5v.5a3 3 0 0 1-3 3h-2.5"/><rect x="10.5" y="20.8" width="3" height="2.4" rx="1.2"/>',
     seta: '<circle cx="12" cy="12" r="9"/><path d="M8 12h8M13 9l3 3-3 3"/>',
   };
   function icone(nome) {
@@ -209,7 +209,10 @@
       (extraRotulo || '') +
       '</div><select id="pc-' +
       nome +
-      '" class="campo-chamado" name="' +
+      '" class="campo-chamado' +
+      // urgência colorida (a cor acompanha o valor escolhido)
+      (nome === 'prioridade' ? ' seletor-urgencia" data-urgencia="' + Ui.esc(valor) : '') +
+      '" name="' +
       nome +
       '"' +
       (desabilitado ? ' disabled' : '') +
@@ -504,7 +507,49 @@
     );
   }
 
+  // cliente com chamado Novo: serviço, categoria e campos adicionais editáveis
+  function painelClienteEditavel(c) {
+    return (
+      cartaoSolicitante(c) +
+      '<p class="aviso-editavel">Você pode alterar estas informações enquanto o chamado estiver como <strong>Novo</strong>.</p>' +
+      selectCampo(
+        'servico',
+        'Serviço',
+        estado.servicos.map(function (sv) {
+          return { valor: sv._id, rotulo: sv.nome };
+        }),
+        c.servico && c.servico._id,
+        c.servico ? undefined : '—',
+        false,
+      ) +
+      '<div class="linha-dupla">' +
+      selectCampo(
+        'categoria',
+        'Categoria',
+        estado.categorias.map(function (a) {
+          return { valor: a._id, rotulo: a.nome };
+        }),
+        c.categoria && c.categoria._id,
+        '- Selecione -',
+        false,
+      ) +
+      valorLeitura('Urgência', Ui.prioridade(c.prioridade)) +
+      '</div>' +
+      valorLeitura('Equipe', Ui.esc(c.equipe ? c.equipe.nome : '—')) +
+      camposEditaveis(
+        c,
+        function () {
+          return true;
+        },
+        false,
+      ) +
+      '<hr />' +
+      sla(c)
+    );
+  }
+
   function painelCliente(c) {
+    if (c.permissoes.podeEditarConteudo) return painelClienteEditavel(c);
     var preenchidos = estado.defs.campos.filter(function (campo) {
       var v = c.camposAdicionais[campo._id];
       return v !== undefined && v !== null && v !== '';
@@ -801,12 +846,51 @@
     );
   }
 
+  // cliente corrige título e descrição enquanto o chamado está Novo
+  function formEdicao(c) {
+    return (
+      '<form class="cartao edicao-chamado" id="form-edicao" novalidate>' +
+      '<h2>Editar chamado #' +
+      c.numero +
+      '</h2>' +
+      '<div class="campo"><label for="ed-titulo">Título</label><input id="ed-titulo" name="titulo" maxlength="150" value="' +
+      Ui.esc(c.titulo) +
+      '" /></div>' +
+      '<div class="campo"><label for="ed-descricao">Descrição</label><textarea id="ed-descricao" name="descricao" rows="7" maxlength="20000">' +
+      Ui.esc(c.descricao) +
+      '</textarea></div>' +
+      '<p class="ajuda-edicao">Você pode editar enquanto o chamado estiver como <strong>Novo</strong>, antes de a equipe começar o atendimento.</p>' +
+      '<div class="acoes-form"><button type="button" class="botao" id="cancelar-edicao">Cancelar</button>' +
+      '<button type="submit" class="botao primario" id="salvar-edicao">Salvar alterações</button></div></form>'
+    );
+  }
+
+  function tituloDoChamado(c) {
+    if (estado.editandoConteudo && c.permissoes.podeEditarConteudo) return formEdicao(c);
+    return (
+      '<div class="titulo-chamado"><h1>' +
+      Ui.esc(c.titulo) +
+      '</h1>' +
+      (c.permissoes.podeEditarConteudo || c.permissoes.podeExcluir
+        ? '<div class="acoes-titulo">' +
+          (c.permissoes.podeEditarConteudo
+            ? '<button type="button" class="botao pequeno botao-editar-chamado" id="editar-chamado" title="Editar título e descrição (enquanto estiver como Novo)">' +
+              '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg> Editar</button>'
+            : '') +
+          (c.permissoes.podeExcluir
+            ? '<button type="button" class="botao pequeno perigo botao-editar-chamado" id="excluir-chamado" title="Excluir o chamado (enquanto estiver como Novo)">' +
+              '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 7V4.5h4V7M7 7l1 13h8l1-13"/></svg> Excluir</button>'
+            : '') +
+          '</div>'
+        : '') +
+      '</div>'
+    );
+  }
+
   function principal(c) {
     return (
       '<section class="principal-chamado">' +
-      '<h1>' +
-      Ui.esc(c.titulo) +
-      '</h1>' +
+      tituloDoChamado(c) +
       '<p class="subtitulo-chamado">Ticket aberto via ' +
       (c.origem === 'email' ? 'e-mail ' : 'sistema ') +
       (c.solicitante ? 'pelo cliente <strong>' + Ui.esc(c.solicitante.nome) + '</strong> ' : '') +
@@ -911,6 +995,11 @@
         estado.tags = r[6].tags;
         estado.justificativas = r[7].justificativas;
         estado.macros = r[8].macros;
+      } else if (estado.chamado.permissoes.podeEditarConteudo) {
+        // cliente com chamado Novo: pode trocar serviço e categoria no painel ao lado
+        var listas = await Promise.all([Api.get('/servicos'), Api.get('/categorias')]);
+        estado.servicos = listas[0].servicos;
+        estado.categorias = listas[1].categorias;
       }
       renderiza();
     } catch (e) {
@@ -949,7 +1038,8 @@
       el.disabled = true;
     });
     try {
-      await Api.patch('/chamados/' + numero, campos);
+      // cliente (chamado Novo) edita pela rota própria; a equipe, pela de atendimento
+      await Api.patch('/chamados/' + numero + (equipe ? '' : '/conteudo'), campos);
     } catch (e) {
       // erro de validação: mostra a mensagem do campo (ex.: "Causa raiz é obrigatório")
       Ui.toast(e.detalhes ? Object.values(e.detalhes)[0] : e.message, 'erro');
@@ -1131,6 +1221,73 @@
 
   // ---------------------------------------------------------------- eventos
   function ligaEventos() {
+    // edição do título/descrição pelo cliente (só enquanto Novo)
+    var editar = Ui.$('#editar-chamado');
+    if (editar) {
+      editar.addEventListener('click', function () {
+        estado.editandoConteudo = true;
+        renderiza();
+        Ui.$('#ed-titulo').focus();
+      });
+    }
+    var excluir = Ui.$('#excluir-chamado');
+    if (excluir) {
+      excluir.addEventListener('click', async function () {
+        if (
+          !window.confirm(
+            'Excluir o chamado #' +
+              numero +
+              '?\n\nEle será apagado com todas as mensagens. Essa ação não pode ser desfeita.',
+          )
+        ) {
+          return;
+        }
+        var restaura = Ui.ocupado(excluir, 'Excluindo...');
+        try {
+          await Api.del('/chamados/' + numero);
+          window.location.href = '/portal?excluido=' + numero;
+        } catch (erro) {
+          restaura();
+          Ui.toast(erro.message, 'erro');
+          if (erro.status === 409) await recarrega().catch(function () {});
+        }
+      });
+    }
+
+    var formEdicao = Ui.$('#form-edicao');
+    if (formEdicao) {
+      Ui.$('#cancelar-edicao').addEventListener('click', function () {
+        estado.editandoConteudo = false;
+        renderiza();
+      });
+      formEdicao.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        Ui.errosDeCampo(formEdicao, {});
+        var restaura = Ui.ocupado(Ui.$('#salvar-edicao'), 'Salvando...');
+        try {
+          await Api.patch('/chamados/' + numero + '/conteudo', {
+            titulo: formEdicao.elements.titulo.value,
+            descricao: formEdicao.elements.descricao.value,
+          });
+          estado.editandoConteudo = false;
+          await recarrega();
+          Ui.toast('Chamado atualizado', 'sucesso');
+        } catch (erro) {
+          restaura();
+          if (erro.detalhes) {
+            Ui.errosDeCampo(formEdicao, erro.detalhes);
+            return;
+          }
+          Ui.toast(erro.message, 'erro');
+          if (erro.status === 409) {
+            // a equipe começou o atendimento enquanto editava
+            estado.editandoConteudo = false;
+            await recarrega().catch(function () {});
+          }
+        }
+      });
+    }
+
     // abas do painel
     document.querySelectorAll('[data-painel]').forEach(function (b) {
       b.addEventListener('click', function () {
@@ -1153,6 +1310,12 @@
       s.addEventListener('change', async function () {
         var corpo = {};
         corpo[s.name] = s.value || null;
+
+        // cliente com chamado Novo: serviço e categoria, sem as regras de atendimento
+        if (!equipe) {
+          altera(corpo, s.name === 'servico' ? 'Serviço alterado' : 'Chamado atualizado');
+          return;
+        }
 
         if (s.name === 'status' && Ui.exigeResposta(estado.chamado.status, s.value)) {
           // resolver/fechar só respondendo o cliente
