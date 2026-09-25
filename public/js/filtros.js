@@ -14,6 +14,7 @@ var Filtros = (function () {
     'tag',
     'busca',
     'ordenar',
+    'parado',
   ];
   var SITUACOES_SLA = { vencido: 'SLA vencido', sem_resposta: '1ª resposta atrasada' };
 
@@ -59,7 +60,8 @@ var Filtros = (function () {
 
   /**
    * @param {HTMLElement} el  container da barra
-   * @param {{ comStatus?: boolean, comOrdenacao?: boolean, aoMudar: (filtros: object) => void }} opcoes
+   * @param {{ comStatus?: boolean, comOrdenacao?: boolean, semBusca?: boolean, aoMudar: (filtros: object) => void }} opcoes
+   *   semBusca: a tela tem a própria busca (a lista de chamados)
    */
   async function monta(el, opcoes) {
     var f = daUrl();
@@ -94,9 +96,11 @@ var Filtros = (function () {
           ) +
           '</select></div>'
         : '') +
-      '<div class="grupo busca"><span>Buscar</span><input name="busca" type="search" placeholder="#1024 ou trecho do título" value="' +
-      Ui.esc(f.busca || '') +
-      '" /></div>' +
+      (opcoes.semBusca
+        ? ''
+        : '<div class="grupo busca"><span>Buscar</span><input name="busca" type="search" placeholder="#1024 ou trecho do título" value="' +
+          Ui.esc(f.busca || '') +
+          '" /></div>') +
       '<div class="grupo"><span>&nbsp;</span><button type="button" class="botao" data-limpar>Limpar</button></div>';
 
     function dispara() {
@@ -120,14 +124,16 @@ var Filtros = (function () {
         dispara();
       }
       if (e.target.closest('[data-limpar]')) {
-        f = {};
+        // a busca da própria tela (semBusca) continua valendo
+        f = opcoes.semBusca && f.busca ? { busca: f.busca } : {};
         el.querySelectorAll('[data-chip]').forEach(function (c) {
           c.setAttribute('aria-pressed', 'false');
         });
         el.querySelectorAll('select').forEach(function (s) {
           s.value = s.name === 'ordenar' ? 'atualizacao' : '';
         });
-        el.querySelector('[name="busca"]').value = '';
+        var campoBusca = el.querySelector('[name="busca"]');
+        if (campoBusca) campoBusca.value = '';
         dispara();
       }
     });
@@ -139,13 +145,15 @@ var Filtros = (function () {
       });
     });
 
-    el.querySelector('[name="busca"]').addEventListener(
-      'input',
-      Ui.debounce(function (e) {
-        f.busca = e.target.value.trim() || undefined;
-        dispara();
-      }, 350),
-    );
+    if (!opcoes.semBusca) {
+      el.querySelector('[name="busca"]').addEventListener(
+        'input',
+        Ui.debounce(function (e) {
+          f.busca = e.target.value.trim() || undefined;
+          dispara();
+        }, 350),
+      );
+    }
 
     function preenche(nome, opcoes, rotuloVazio) {
       var select = el.querySelector('[name="' + nome + '"]');
@@ -164,8 +172,8 @@ var Filtros = (function () {
         Api.get('/tags'),
         Api.eu(),
       ]);
-      // quem vê todas as equipes (admin ou perfil com essa permissão) filtra por qualquer uma
-      var veTodas = Api.pode(r[5], 'verTodosChamados');
+      // só o admin vê (e filtra) todas as equipes
+      var veTodas = r[5].papel === 'admin';
 
       // agente só enxerga a fila das equipes dele
       var equipes = r[1].equipes.filter(function (e) {
@@ -235,5 +243,5 @@ var Filtros = (function () {
     return f;
   }
 
-  return { monta: monta, daUrl: daUrl };
+  return { monta: monta, daUrl: daUrl, paraUrl: paraUrl };
 })();

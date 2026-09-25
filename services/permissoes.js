@@ -37,19 +37,14 @@ const atendeEquipe = (usuario, equipeId) =>
 
 /**
  * Filtro do MongoDB com os chamados que o usuário pode ver:
- * - admin, ou agente com "Ver chamados de todas as equipes": todos
- * - agente: chamados das suas equipes + os que estão sob sua responsabilidade
+ * - admin: todos
+ * - agente: só os chamados das filas das suas equipes (para outra equipe, ele encaminha)
  * - cliente: os que ele abriu (e os da empresa dele, se o perfil permitir)
  * @param {UsuarioLogado} usuario
  */
 const filtroDeVisibilidade = (usuario) => {
   if (ehAdmin(usuario)) return {};
-  if (ehEquipe(usuario)) {
-    if (pode(usuario, 'verTodosChamados')) return {};
-    return {
-      $or: [{ equipe: { $in: equipesDoUsuario(usuario) } }, { responsavel: usuario._id }],
-    };
-  }
+  if (ehEquipe(usuario)) return { equipe: { $in: equipesDoUsuario(usuario) } };
   if (usuario.empresa && pode(usuario, 'verChamadosDaEmpresa')) {
     return { $or: [{ solicitante: usuario._id }, { empresa: usuario.empresa }] };
   }

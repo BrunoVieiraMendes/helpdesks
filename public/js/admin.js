@@ -11,7 +11,16 @@
   var conteudo = Ui.$('#conteudo');
   var barra = Ui.$('#barra');
   var PAPEIS = { cliente: 'Cliente', agente: 'Agente', admin: 'Admin' };
-  var CORES = ['#2458d6', '#7a3fd1', '#1f8a4c', '#b86a00', '#c62f3a', '#0e7c86', '#5f6b7e'];
+  var CORES = [
+    '#c2410c',
+    '#2458d6',
+    '#7a3fd1',
+    '#1f8a4c',
+    '#b86a00',
+    '#c62f3a',
+    '#0e7c86',
+    '#5f6b7e',
+  ];
   var DIAS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
   var FUSOS = [
     { valor: -120, rotulo: 'UTC-2 (Fernando de Noronha)' },
@@ -52,6 +61,8 @@
   var modal = Ui.$('#modal');
   var formModal = Ui.$('#form-modal');
   var aoSalvarModal = null;
+  // registro aberto para edição (habilita o botão Excluir do modal); null = cadastro novo
+  var edicaoAtual = null;
 
   function campoHtml(c) {
     if (c.tipo === 'titulo') return '<h3 class="titulo-secao-form">' + Ui.esc(c.rotulo) + '</h3>';
@@ -98,6 +109,58 @@
         (c.ajuda ? '<span class="ajuda">' + Ui.esc(c.ajuda) + '</span>' : '') +
         '</div>'
       );
+    } else if (c.tipo === 'listaSelecao') {
+      // lista de pessoas com busca, "selecionar todos" e contador
+      var marcados = c.valor || [];
+      controle =
+        '<div class="lista-selecao" id="' +
+        id +
+        '">' +
+        '<div class="topo-lista-selecao">' +
+        '<input type="search" class="busca-lista-selecao" placeholder="' +
+        Ui.esc(c.placeholderBusca || 'Buscar por nome ou e-mail') +
+        '" aria-label="Buscar na lista" />' +
+        '<span class="acoes-lista-selecao"><span class="contador-selecao" aria-live="polite"></span>' +
+        '<button type="button" class="link-selecao" data-selecionar-todos>Selecionar todos</button>' +
+        '<button type="button" class="link-selecao" data-limpar-selecao>Limpar</button></span>' +
+        '</div>' +
+        '<div class="itens-lista-selecao" data-grupo="' +
+        c.nome +
+        '" role="group" aria-label="' +
+        Ui.esc(c.rotulo) +
+        '">' +
+        c.opcoes
+          .map(function (o) {
+            var marcado = marcados.indexOf(o.valor) !== -1;
+            return (
+              '<label class="item-selecao' +
+              (marcado ? ' marcado' : '') +
+              '" data-busca="' +
+              Ui.esc(((o.rotulo || '') + ' ' + (o.detalhe || '')).toLowerCase()) +
+              '"><input type="checkbox" value="' +
+              Ui.esc(o.valor) +
+              '"' +
+              (marcado ? ' checked' : '') +
+              ' />' +
+              (o.pessoa ? Ui.avatar(o.pessoa) : '') +
+              '<span class="texto-item-selecao"><strong>' +
+              Ui.esc(o.rotulo) +
+              '</strong>' +
+              (o.detalhe ? '<span>' + Ui.esc(o.detalhe) + '</span>' : '') +
+              '</span>' +
+              (o.selo ? '<span class="selo-item-selecao">' + Ui.esc(o.selo) + '</span>' : '') +
+              '</label>'
+            );
+          })
+          .join('') +
+        '<p class="vazio-lista-selecao"' +
+        (c.opcoes.length ? ' hidden' : '') +
+        '>' +
+        Ui.esc(c.opcoes.length ? 'Ninguém encontrado' : c.semOpcoes || 'Nada cadastrado') +
+        '</p>' +
+        '</div></div><input type="hidden" name="' +
+        c.nome +
+        '" />';
     } else if (c.tipo === 'checkboxes') {
       controle =
         '<div class="checkboxes" id="' +
@@ -165,6 +228,8 @@
     Ui.$('#modal-aviso').innerHTML = '';
     Ui.$('#modal-campos').innerHTML = cfg.campos.map(campoHtml).join('');
     aoSalvarModal = cfg.aoSalvar;
+    Ui.$('#modal-excluir').hidden = !edicaoAtual;
+    formModal.querySelectorAll('.lista-selecao').forEach(atualizaListaSelecao);
     if (cfg.aoMontar) cfg.aoMontar(formModal);
     modal.showModal();
     var primeiro = formModal.querySelector('input:not([type=hidden]), select, textarea');
@@ -191,6 +256,95 @@
     });
     return valores;
   }
+
+  // ---------------------------------------------------------------- lista de seleção (campo "listaSelecao")
+  function atualizaListaSelecao(lista) {
+    var itens = lista.querySelectorAll('.item-selecao');
+    var n = 0;
+    itens.forEach(function (item) {
+      var marcado = item.querySelector('input').checked;
+      item.classList.toggle('marcado', marcado);
+      if (marcado) n += 1;
+    });
+    lista.querySelector('.contador-selecao').textContent =
+      n + (n === 1 ? ' selecionado' : ' selecionados') + ' de ' + itens.length;
+  }
+
+  formModal.addEventListener('input', function (e) {
+    if (!e.target.classList.contains('busca-lista-selecao')) return;
+    var lista = e.target.closest('.lista-selecao');
+    var termo = semAcento(e.target.value.trim());
+    var visiveis = 0;
+    lista.querySelectorAll('.item-selecao').forEach(function (item) {
+      var aparece = !termo || semAcento(item.getAttribute('data-busca')).indexOf(termo) !== -1;
+      item.hidden = !aparece;
+      if (aparece) visiveis += 1;
+    });
+    var vazio = lista.querySelector('.vazio-lista-selecao');
+    vazio.textContent = 'Ninguém encontrado';
+    vazio.hidden = visiveis > 0;
+  });
+
+  formModal.addEventListener('change', function (e) {
+    var lista = e.target.closest('.lista-selecao');
+    if (lista && e.target.type === 'checkbox') atualizaListaSelecao(lista);
+  });
+
+  formModal.addEventListener('click', function (e) {
+    var todos = e.target.closest('[data-selecionar-todos]');
+    var limpar = e.target.closest('[data-limpar-selecao]');
+    if (!todos && !limpar) return;
+    var lista = e.target.closest('.lista-selecao');
+    // "selecionar todos" respeita a busca: marca só quem está aparecendo
+    lista.querySelectorAll('.item-selecao').forEach(function (item) {
+      if (todos && item.hidden) return;
+      item.querySelector('input').checked = Boolean(todos);
+    });
+    atualizaListaSelecao(lista);
+  });
+
+  function editaRegistro(tipo, id) {
+    var item = acha(tipo, id);
+    edicaoAtual = SECOES[tipo].rota ? { tipo: tipo, item: item } : null;
+    SECOES[tipo].form(item);
+  }
+
+  modal.addEventListener('close', function () {
+    edicaoAtual = null;
+  });
+
+  // Excluir pelo modal de edição: confirma e, se o registro estiver em uso, a API recusa com o motivo
+  Ui.$('#modal-excluir').addEventListener('click', async function () {
+    if (!edicaoAtual) return;
+    var secao = SECOES[edicaoAtual.tipo];
+    var item = edicaoAtual.item;
+    var nome = item.nome || item.titulo || 'este registro';
+    if (
+      !window.confirm(
+        'Excluir ' +
+          secao.rotulo +
+          ' "' +
+          nome +
+          '"?\n\nEssa ação não pode ser desfeita. Se estiver em uso, a exclusão é recusada e você pode desabilitar o registro.',
+      )
+    ) {
+      return;
+    }
+    var restaura = Ui.ocupado(Ui.$('#modal-excluir'), 'Excluindo...');
+    try {
+      await Api.del(secao.rota + '/' + item._id);
+      restaura();
+      modal.close();
+      Ui.toast(nome + ' excluído(a)', 'sucesso');
+      renderizaSecao();
+    } catch (erro) {
+      restaura();
+      Ui.$('#modal-aviso').innerHTML =
+        '<div class="alerta erro">' +
+        Ui.esc(erro.detalhes ? Object.values(erro.detalhes)[0] : erro.message) +
+        '</div>';
+    }
+  });
 
   Ui.$('#modal-cancelar').addEventListener('click', function () {
     modal.close();
@@ -585,16 +739,14 @@
     // clique na linha (fora da caixa de seleção e de links) abre a edição
     if (e.target.closest('input, a, button')) return;
     var linha = e.target.closest('tr[data-editar]');
-    if (linha)
-      SECOES[listaAtual.tipo].form(acha(listaAtual.tipo, linha.getAttribute('data-editar')));
+    if (linha) editaRegistro(listaAtual.tipo, linha.getAttribute('data-editar'));
   });
 
   conteudo.addEventListener('keydown', function (e) {
     if (!listaAtual || e.key !== 'Enter') return;
     var linha = e.target.closest('tr[data-editar]');
-    if (linha && e.target === linha) {
-      SECOES[listaAtual.tipo].form(acha(listaAtual.tipo, linha.getAttribute('data-editar')));
-    }
+    if (linha && e.target === linha)
+      editaRegistro(listaAtual.tipo, linha.getAttribute('data-editar'));
   });
 
   barra.addEventListener('click', function (e) {
@@ -633,17 +785,22 @@
         {
           nome: 'membros',
           rotulo: 'Membros',
-          tipo: 'checkboxes',
+          tipo: 'listaSelecao',
           valor: eq ? idsDosMembros(eq) : [],
-          opcoes: agentes.map(function (u) {
-            return {
-              valor: u._id,
-              rotulo:
-                u.nome +
-                (u.papel === 'admin' ? ' (admin)' : '') +
-                (u.ativo ? '' : ' (desabilitado)'),
-            };
-          }),
+          opcoes: agentes
+            .slice()
+            .sort(function (a, b) {
+              return a.nome.localeCompare(b.nome, 'pt-BR');
+            })
+            .map(function (u) {
+              return {
+                valor: u._id,
+                rotulo: u.nome,
+                detalhe: u.email,
+                pessoa: u,
+                selo: u.ativo ? (u.papel === 'admin' ? 'Admin' : 'Agente') : 'Desabilitado',
+              };
+            }),
           semOpcoes: 'Nenhum agente cadastrado',
           ajuda: 'Os membros veem a fila da equipe. Admins atendem qualquer equipe.',
         },
@@ -2566,7 +2723,7 @@
       rotulo: 'equipe',
     },
     servicos: {
-      grupo: 'Classificação',
+      grupo: 'Chamados',
       titulo: 'Serviços',
       descricao: 'Catálogo que o cliente vê ao abrir um chamado.',
       carrega: secaoServicos,
@@ -2576,7 +2733,7 @@
       rotulo: 'serviço',
     },
     categorias: {
-      grupo: 'Classificação',
+      grupo: 'Chamados',
       titulo: 'Categorias',
       descricao: 'Tipos de chamado para relatórios e filtros.',
       carrega: secaoCategorias,
@@ -2586,13 +2743,13 @@
       rotulo: 'categoria',
     },
     status: {
-      grupo: 'Classificação',
+      grupo: 'Chamados',
       titulo: 'Status',
       descricao: 'Ciclo de vida do chamado.',
       carrega: secaoStatus,
     },
     justificativas: {
-      grupo: 'Classificação',
+      grupo: 'Chamados',
       titulo: 'Justificativas',
       descricao: 'Motivos exigidos em determinados status.',
       carrega: secaoJustificativas,
@@ -2602,7 +2759,7 @@
       rotulo: 'justificativa',
     },
     tags: {
-      grupo: 'Classificação',
+      grupo: 'Chamados',
       titulo: 'Tags',
       descricao: 'Etiquetas livres para organizar chamados.',
       carrega: secaoTags,
@@ -2612,13 +2769,13 @@
       rotulo: 'tag',
     },
     sla: {
-      grupo: 'Acordos',
+      grupo: 'Atendimento',
       titulo: 'SLA e urgências',
       descricao: 'Expediente e prazos de 1ª resposta e solução por urgência.',
       carrega: secaoSla,
     },
     macros: {
-      grupo: 'Automação',
+      grupo: 'Atendimento',
       titulo: 'Macros',
       descricao: 'Respostas prontas com ações automáticas.',
       carrega: secaoMacros,
@@ -2628,7 +2785,7 @@
       rotulo: 'macro',
     },
     pesquisa: {
-      grupo: 'Pesquisa de satisfação',
+      grupo: 'Atendimento',
       titulo: 'Pesquisa de satisfação',
       descricao: 'Avaliação do atendimento pelo cliente.',
       carrega: secaoPesquisa,
@@ -2692,7 +2849,10 @@
     var b = e.target.closest('[data-acao]');
     if (!b) return;
     // botão + das listas; editar é clicando na linha e o resto fica no menu Opções
-    if (b.getAttribute('data-acao') === 'nova') SECOES[b.getAttribute('data-tipo')].form(null);
+    if (b.getAttribute('data-acao') === 'nova') {
+      edicaoAtual = null;
+      SECOES[b.getAttribute('data-tipo')].form(null);
+    }
   });
 
   renderizaSecao();

@@ -2,7 +2,7 @@
 // satisfação) e avisos do mural visíveis para cada usuário.
 const { Chamado, Aviso } = require('../models');
 const { STATUS } = require('../constants');
-const { ehEquipe, pode, equipesDoUsuario, filtroDeVisibilidade } = require('./permissoes');
+const { ehEquipe, ehAdmin, equipesDoUsuario, filtroDeVisibilidade } = require('./permissoes');
 const { STATUS_ABERTOS } = require('./regras-chamado');
 const { obtemConfiguracao } = require('./configuracao');
 
@@ -65,7 +65,8 @@ const painelInicial = async (usuario) => {
   const agora = new Date();
   const { inicio, fim } = limitesDoDia(configuracao.expediente.fusoMinutos);
   const visibilidade = filtroDeVisibilidade(usuario);
-  const veTodos = pode(usuario, 'verTodosChamados');
+  // só o admin enxerga todas as filas
+  const veTodos = ehAdmin(usuario);
   const equipes = equipesDoUsuario(usuario);
   const conta = (filtro) => Chamado.countDocuments(dentroDe(visibilidade, filtro));
 

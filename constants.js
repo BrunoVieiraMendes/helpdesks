@@ -93,7 +93,6 @@ const PERCENTUAL_SLA_EM_RISCO = 25;
 // Admin não usa perfil: tem todas as permissões.
 const PERMISSOES = Object.freeze({
   agente: Object.freeze({
-    verTodosChamados: { rotulo: 'Ver chamados de todas as equipes', padrao: false },
     abrirEmNomeDeCliente: { rotulo: 'Abrir chamados em nome de clientes', padrao: true },
     alterarPrioridade: { rotulo: 'Alterar a prioridade dos chamados', padrao: true },
     transferirChamados: { rotulo: 'Transferir chamados de equipe ou serviço', padrao: true },

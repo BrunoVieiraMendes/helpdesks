@@ -107,7 +107,7 @@ O **sino** na barra do topo (agentes e admins) avisa quando um chamado é **aber
 
 ## Configurações (inspiradas no Movidesk)
 
-O painel `/admin` reúne todos os grupos de configuração. Os itens marcados como "em breve" ainda não foram implementados (base de conhecimento, e-mail, chat, gatilhos etc.).
+O painel `/admin` reúne as configurações em cinco grupos: Conta, Pessoas, Chamados, Campos adicionais e Atendimento.
 
 | Grupo                  | Item                         | O que faz                                                                                    |
 | ---------------------- | ---------------------------- | -------------------------------------------------------------------------------------------- |
@@ -143,7 +143,6 @@ Cada agente ou cliente pode ter um perfil. Quem não tem usa o **perfil padrão*
 
 | Perfil de | Permissão                                | Padrão |
 | --------- | ---------------------------------------- | ------ |
-| Agente    | Ver chamados de todas as equipes         | não    |
 | Agente    | Abrir chamados em nome de clientes       | sim    |
 | Agente    | Alterar a prioridade dos chamados        | sim    |
 | Agente    | Transferir chamados de equipe ou serviço | sim    |
@@ -157,7 +156,7 @@ A API valida cada permissão (403) e as telas escondem ou desabilitam o que o pe
 
 ## Regras de negócio
 
-- **RBAC:** o cliente só vê os próprios chamados (ou os da empresa, se o perfil permitir). Se tentar abrir o de outra pessoa, recebe 404. Agentes atendem a fila das suas equipes (ou todas, se o perfil permitir), e o admin tem acesso total, inclusive para administrar equipes, serviços, pessoas e demais cadastros. O restante do que cada um pode fazer vem do perfil de acesso.
+- **RBAC:** o cliente só vê os próprios chamados (ou os da empresa, se o perfil permitir). Se tentar abrir o de outra pessoa, recebe 404. Agentes veem **somente a fila das suas equipes** (os de outras equipes dão 404) e podem **encaminhar** um chamado para outra equipe, com uma confirmação antes; depois disso deixam de vê-lo. O admin tem acesso total, inclusive para administrar equipes, serviços, pessoas e demais cadastros. O restante do que cada um pode fazer vem do perfil de acesso.
 - **Status:** Novo, Em Atendimento, Pendente, Resolvido e Fechado. As transições permitidas estão em `constants.js`. Um chamado não volta para "Novo".
 - **Automatismos:**
   - quando a equipe responde um chamado Novo, ele vai para Em Atendimento e quem respondeu vira o responsável;

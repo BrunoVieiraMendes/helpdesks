@@ -1,7 +1,13 @@
 const createError = require('http-errors');
 
-const { Chamado } = require('../models');
-const { STATUS, ROTULOS_STATUS, ROTULOS_PRIORIDADE, PESOS_PRIORIDADE } = require('../constants');
+const { Chamado, Interacao } = require('../models');
+const {
+  STATUS,
+  ROTULOS_STATUS,
+  ROTULOS_PRIORIDADE,
+  PESOS_PRIORIDADE,
+  TIPOS_INTERACAO,
+} = require('../constants');
 const { erroDeValidacao } = require('../utils');
 const { ehEquipe, atendeEquipe, pode } = require('./permissoes');
 const { validaTransicao, slaParaMudancaDeStatus } = require('./regras-chamado');
@@ -236,6 +242,19 @@ const atualizaChamado = async (chamado, dados, usuario, { automatico = false } =
   );
   await registraCamposAlterados(chamado._id, campos, usuario);
   if (mudancas.equipe) await notificaEquipeDoChamado('chamado-transferido', chamado._id, usuario);
+
+  // encaminhamento com motivo: fica como nota interna para a nova equipe
+  const motivo = String(dados.motivoEncaminhamento ?? '')
+    .trim()
+    .slice(0, 2000);
+  if (mudancas.equipe && motivo && usuario?._id) {
+    await Interacao.create({
+      chamado: chamado._id,
+      autor: usuario._id,
+      tipo: TIPOS_INTERACAO.INTERNA,
+      mensagem: `Motivo do encaminhamento: ${motivo}`,
+    });
+  }
 
   return detalhaChamado(chamado._id, usuario);
 };

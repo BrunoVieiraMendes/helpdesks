@@ -9,17 +9,19 @@
   }
   Ui.navbar(usuario);
 
-  // aba = seção de /admin/configuracoes; sem aba = ainda não disponível
+  // aba = seção de /admin/configuracoes; termos = palavras que a busca também reconhece
   var GRUPOS = [
     {
       nome: 'Conta',
       icone: 'conta',
       itens: [
-        { nome: 'Empresa', aba: 'parametros', termos: 'nome conta' },
-        { nome: 'Parâmetros', aba: 'parametros', termos: 'fechamento automático dias' },
+        {
+          nome: 'Empresa e parâmetros',
+          aba: 'parametros',
+          termos: 'nome conta fechamento automático dias',
+        },
         { nome: 'Feriados', aba: 'feriados', termos: 'calendário folga' },
         { nome: 'Mural de avisos', aba: 'avisos', termos: 'recados comunicados início' },
-        { nome: 'LGPD' },
       ],
     },
     {
@@ -36,47 +38,17 @@
           aba: 'classificacoes',
           termos: 'tipo de pessoa parceiro revenda',
         },
-        { nome: 'Regras para associação' },
       ],
     },
     {
-      nome: 'Classificação',
+      nome: 'Chamados',
       icone: 'classificacao',
       itens: [
         { nome: 'Serviços', aba: 'servicos', termos: 'catálogo' },
-        { nome: 'Urgências', aba: 'sla', termos: 'prioridade prazos' },
         { nome: 'Categorias', aba: 'categorias', termos: 'tipo' },
         { nome: 'Status', aba: 'status', termos: 'transições fluxo' },
         { nome: 'Justificativas', aba: 'justificativas', termos: 'motivo pendente' },
         { nome: 'Tags', aba: 'tags', termos: 'etiquetas marcadores' },
-      ],
-    },
-    {
-      nome: 'Base de conhecimento',
-      icone: 'base',
-      itens: [
-        { nome: 'Menus' },
-        { nome: 'Categorias da base' },
-        { nome: 'Artigos' },
-        { nome: 'Configuração de Artigos' },
-        { nome: 'Aparência' },
-        { nome: 'Formulários' },
-      ],
-    },
-    {
-      nome: 'Aprovação',
-      icone: 'aprovacao',
-      itens: [{ nome: 'Regras de aprovação' }],
-    },
-    {
-      nome: 'E-mail',
-      icone: 'email',
-      itens: [
-        { nome: 'Contas' },
-        { nome: 'Log' },
-        { nome: 'Catálogo de endereços' },
-        { nome: 'Endereços bloqueados' },
-        { nome: 'Conteúdos bloqueados' },
       ],
     },
     {
@@ -88,82 +60,23 @@
       ],
     },
     {
-      nome: 'Apontamentos',
-      icone: 'apontamentos',
-      itens: [
-        { nome: 'Atividades' },
-        { nome: 'Tipo de hora' },
-        { nome: 'Unidade de medida' },
-        { nome: 'Tipo de despesa' },
-      ],
-    },
-    {
-      nome: 'Workflow',
-      icone: 'workflow',
-      itens: [{ nome: 'Workflow' }],
-    },
-    {
-      nome: 'Automação',
-      icone: 'automacao',
-      itens: [
-        { nome: 'Gatilhos' },
-        { nome: 'Gatilhos excluídos' },
-        { nome: 'Webhook - Log de execução' },
-        { nome: 'Macros', aba: 'macros', termos: 'respostas prontas modelos' },
-      ],
-    },
-    {
-      nome: 'Acordos',
+      nome: 'Atendimento',
       icone: 'acordos',
       itens: [
-        { nome: 'SLA', aba: 'sla', termos: 'prazo expediente horário urgência' },
-        { nome: 'Contrato de horas' },
+        {
+          nome: 'SLA e urgências',
+          aba: 'sla',
+          termos: 'prazo expediente horário prioridade acordos',
+        },
+        { nome: 'Macros', aba: 'macros', termos: 'respostas prontas modelos automação' },
+        {
+          nome: 'Pesquisa de satisfação',
+          aba: 'pesquisa',
+          termos: 'avaliação nota csat perguntas',
+        },
       ],
-    },
-    {
-      nome: 'Chat',
-      icone: 'chat',
-      itens: [
-        { nome: 'Grupos de chat' },
-        { nome: 'Aplicativos' },
-        { nome: 'FacebookMessenger' },
-        { nome: 'WhatsApp' },
-      ],
-    },
-    {
-      nome: 'Pesquisa de satisfação',
-      icone: 'pesquisa',
-      itens: [
-        { nome: 'Configurações de perguntas', aba: 'pesquisa', termos: 'avaliação nota csat' },
-      ],
-    },
-    {
-      nome: 'Telefonia',
-      icone: 'telefonia',
-      itens: [{ nome: 'Grupos de telefonia' }, { nome: 'Parâmetros de telefonia' }],
     },
   ];
-
-  // ordem de leitura em colunas (de cima para baixo), como no Movidesk
-  var ORDEM = [
-    'Conta',
-    'Pessoas',
-    'Classificação',
-    'Campos adicionais',
-    'Acordos',
-    'Base de conhecimento',
-    'Apontamentos',
-    'Aprovação',
-    'Workflow',
-    'Chat',
-    'Telefonia',
-    'E-mail',
-    'Automação',
-    'Pesquisa de satisfação',
-  ];
-  GRUPOS.sort(function (a, b) {
-    return ORDEM.indexOf(a.nome) - ORDEM.indexOf(b.nome);
-  });
 
   var CHAVE_MODO = 'helpdesk.painel.modo';
   var estado = { busca: '', modo: 'grupo' };
@@ -195,14 +108,6 @@
   }
 
   function link(item, extra) {
-    if (!item.aba) {
-      return (
-        '<span class="item-config indisponivel" title="Em breve">' +
-        Ui.esc(item.nome) +
-        (extra || '') +
-        '<span class="em-breve">em breve</span></span>'
-      );
-    }
     return (
       '<a class="item-config" href="/admin/configuracoes#' +
       item.aba +

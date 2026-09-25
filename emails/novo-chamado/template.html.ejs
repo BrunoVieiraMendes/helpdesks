@@ -1,7 +1,7 @@
 <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#1f2937">
-  <h2 style="color:#2563eb">Recebemos o seu chamado #<%= chamado.numero %></h2>
+  <h2 style="color:#c2410c">Recebemos o seu chamado #<%= chamado.numero %></h2>
   <p>Olá, <%= chamado.solicitante.nome %>!</p>
   <p>Seu chamado <strong><%= chamado.titulo %></strong> foi registrado e encaminhado para a equipe <strong><%= chamado.equipe ? chamado.equipe.nome : "de atendimento" %></strong>.</p>
-  <p><a href="<%= urlDoHelpdesk %>/chamados/<%= chamado.numero %>" style="background:#2563eb;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none">Acompanhar chamado</a></p>
+  <p><a href="<%= urlDoHelpdesk %>/chamados/<%= chamado.numero %>" style="background:#c2410c;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none">Acompanhar chamado</a></p>
   <p style="color:#6b7280;font-size:12px">Você receberá um e-mail sempre que a equipe responder.</p>
 </div>

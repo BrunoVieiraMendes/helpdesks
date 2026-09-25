@@ -188,7 +188,7 @@ const schemas = {
           '. Cliente: ' +
           Object.keys(PERMISSOES.cliente).join(', '),
         additionalProperties: { type: 'boolean' },
-        example: { verTodosChamados: false, reabrirChamados: true },
+        example: { transferirChamados: true, reabrirChamados: true },
       },
       ativo: { type: 'boolean', example: true },
     },
@@ -395,6 +395,11 @@ const schemas = {
       categoria: { ...id, nullable: true },
       servico: { ...id, description: 'trocar o serviço move o chamado para a equipe dele' },
       equipe: { ...id, description: 'transferência de equipe' },
+      motivoEncaminhamento: {
+        type: 'string',
+        maxLength: 2000,
+        description: 'opcional; quando a equipe muda, vira nota interna "Motivo do encaminhamento"',
+      },
     },
   },
   Chamado: {

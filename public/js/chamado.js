@@ -166,6 +166,7 @@
     var souResponsavel = c.responsavel && c.responsavel._id === usuario._id;
     var itens = [];
     if (equipe && p.podeAssumir && !souResponsavel) itens.push(['assumir', 'Assumir chamado']);
+    if (equipe && p.podeTransferir) itens.push(['encaminhar', 'Encaminhar para outra equipe']);
     if (p.podeReabrir) itens.push(['reabrir', 'Reabrir chamado']);
     itens.push(['copiar', 'Copiar link do chamado']);
     itens.push(['voltar', equipe ? 'Voltar para a fila' : 'Voltar para meus chamados']);
@@ -578,11 +579,12 @@
     return partes.join(' · ');
   }
 
-  function seletorMacros() {
+  // macro: linha logo abaixo do texto, com o seletor e o resumo do que a macro vai fazer
+  function linhaMacro() {
     if (!estado.macros.length) return '';
     var m = estado.macro;
     return (
-      '<div class="barra-macro"><select id="seletor-macro" aria-label="Aplicar macro">' +
+      '<div class="linha-macro"><select id="seletor-macro" class="seletor-macro" aria-label="Aplicar macro">' +
       Ui.opcoes(
         estado.macros.map(function (x) {
           return { valor: x._id, rotulo: x.nome };
@@ -645,7 +647,6 @@
       '<form class="editor-acao' +
       (interna ? ' modo-interna' : '') +
       '" id="form-resposta">' +
-      (p.podeAplicarMacros ? seletorMacros() : '') +
       '<div class="area-texto"><textarea name="mensagem" rows="5" placeholder="' +
       (interna
         ? 'Ação interna: visível apenas para a equipe...'
@@ -653,6 +654,7 @@
           ? 'Escreva a resposta para o cliente...'
           : 'Escreva sua mensagem...') +
       '"></textarea><span class="contador-palavras" id="contador-palavras">Palavras: 0</span></div>' +
+      (p.podeAplicarMacros ? linhaMacro() : '') +
       '<div class="barra-editor">' +
       tipos +
       '<span class="dica-editor">Ctrl + Enter para enviar</span>' +
@@ -962,6 +964,146 @@
     }
   }
 
+  // ---------------------------------------------------------------- encaminhar para outra equipe
+  function nomeDaEquipe(id) {
+    var e = estado.equipes.filter(function (x) {
+      return x._id === id;
+    })[0];
+    return e ? e.nome : 'outra equipe';
+  }
+
+  function responsavelAtende(equipeId) {
+    var c = estado.chamado;
+    if (!c.responsavel) return true;
+    var agente = estado.agentes.filter(function (a) {
+      return a._id === c.responsavel._id;
+    })[0];
+    if (!agente) return false;
+    return (
+      agente.papel === 'admin' ||
+      (agente.equipes || []).some(function (e) {
+        return (e._id || e) === equipeId;
+      })
+    );
+  }
+
+  /**
+   * Janela de confirmação do encaminhamento. Só libera o botão depois de escolher a equipe
+   * e marcar "Confirmo". Resolve { equipe, motivo } ou null (cancelou).
+   * @param {{ destino?: string, fixo?: boolean, nomeServico?: string }} cfg
+   */
+  function dialogoEncaminhar(cfg) {
+    var c = estado.chamado;
+    var atual = c.equipe && c.equipe._id;
+    var outras = estado.equipes.filter(function (e) {
+      return e._id !== atual;
+    });
+    return new Promise(function (resolve) {
+      var d = document.createElement('dialog');
+      d.className = 'modal modal-encaminhar';
+      d.innerHTML =
+        '<form method="dialog" novalidate><h2>Encaminhar chamado #' +
+        c.numero +
+        '</h2>' +
+        '<p class="suave texto-encaminhar">Hoje o chamado está na fila <strong>' +
+        Ui.esc(c.equipe ? c.equipe.nome : 'sem equipe') +
+        '</strong>.' +
+        (cfg.nomeServico
+          ? ' Ao trocar o serviço para <strong>' +
+            Ui.esc(cfg.nomeServico) +
+            '</strong>, ele vai para outra equipe.'
+          : '') +
+        '</p>' +
+        '<div class="campo"><label for="encaminhar-equipe">Encaminhar para a equipe</label>' +
+        '<select id="encaminhar-equipe"' +
+        (cfg.fixo ? ' disabled' : '') +
+        '>' +
+        Ui.opcoes(
+          outras.map(function (e) {
+            return { valor: e._id, rotulo: e.nome };
+          }),
+          cfg.destino || '',
+          'Selecione a equipe...',
+        ) +
+        '</select></div>' +
+        '<div id="avisos-encaminhar"></div>' +
+        '<div class="campo"><label for="encaminhar-motivo">Motivo do encaminhamento <span class="suave">(opcional)</span></label>' +
+        '<textarea id="encaminhar-motivo" rows="3" maxlength="2000" placeholder="Ex.: problema de rede, precisa da equipe de infraestrutura"></textarea>' +
+        '<span class="ajuda">Fica registrado como nota interna para a nova equipe.</span></div>' +
+        '<label class="check-confirmacao"><input type="checkbox" id="encaminhar-certeza" /> Confirmo que quero encaminhar este chamado</label>' +
+        '<div class="acoes-form"><button class="botao" type="button" data-cancelar>Cancelar</button>' +
+        '<button class="botao primario" type="submit" id="encaminhar-ok" disabled>Encaminhar</button></div></form>';
+      document.body.appendChild(d);
+
+      var select = d.querySelector('#encaminhar-equipe');
+      var certeza = d.querySelector('#encaminhar-certeza');
+      var botao = d.querySelector('#encaminhar-ok');
+      var encerrado = false;
+
+      function atualiza() {
+        var destino = select.value;
+        var avisos = [];
+        if (destino && !souMembro(destino)) {
+          avisos.push(
+            'Você não faz parte da equipe <strong>' +
+              Ui.esc(nomeDaEquipe(destino)) +
+              '</strong>: depois de encaminhar, <strong>deixará de ver este chamado</strong>.',
+          );
+        }
+        if (destino && c.responsavel && !responsavelAtende(destino)) {
+          avisos.push(
+            'O responsável atual (' +
+              Ui.esc(c.responsavel.nome) +
+              ') não faz parte dessa equipe e será removido do chamado.',
+          );
+        }
+        d.querySelector('#avisos-encaminhar').innerHTML = avisos
+          .map(function (a) {
+            return '<div class="alerta aviso-encaminhar">' + a + '</div>';
+          })
+          .join('');
+        botao.disabled = !(destino && certeza.checked);
+      }
+
+      function encerra(valor) {
+        if (encerrado) return;
+        encerrado = true;
+        if (d.open) d.close();
+        d.remove();
+        resolve(valor);
+      }
+
+      select.addEventListener('change', atualiza);
+      certeza.addEventListener('change', atualiza);
+      d.querySelector('[data-cancelar]').addEventListener('click', function () {
+        encerra(null);
+      });
+      d.querySelector('form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (botao.disabled) return;
+        encerra({
+          equipe: select.value,
+          motivo: d.querySelector('#encaminhar-motivo').value.trim(),
+        });
+      });
+      d.addEventListener('close', function () {
+        encerra(null);
+      });
+      d.showModal();
+      atualiza();
+      (cfg.destino ? certeza : select).focus();
+    });
+  }
+
+  /** Encaminha (equipe ou serviço de outra equipe) depois da confirmação. */
+  async function encaminha(cfg) {
+    var r = await dialogoEncaminhar(cfg);
+    if (!r) return;
+    var corpo = cfg.servico ? { servico: cfg.servico } : { equipe: r.equipe };
+    if (r.motivo) corpo.motivoEncaminhamento = r.motivo;
+    altera(corpo, 'Chamado encaminhado para ' + nomeDaEquipe(r.equipe));
+  }
+
   // pergunta a justificativa quando o status exige; null = cancelou
   async function perguntaJustificativa(status) {
     var motivos = justificativasPara(status);
@@ -1020,7 +1162,8 @@
           if (escolhida) corpo.justificativa = escolhida;
         }
 
-        // transferir para (ou trocar para serviço de) uma equipe da qual não faço parte
+        // mudar de equipe (direto ou por um serviço de outra equipe) é um encaminhamento:
+        // só acontece depois da confirmação na janela de encaminhar
         var destino = s.name === 'equipe' ? s.value : null;
         if (s.name === 'servico') {
           var sv = estado.servicos.filter(function (x) {
@@ -1029,19 +1172,18 @@
           destino = sv && sv.equipe && sv.equipe._id;
         }
         var atual = estado.chamado.equipe && estado.chamado.equipe._id;
-        if (destino && destino !== atual && !souMembro(destino)) {
-          var nome = s.options[s.selectedIndex].text;
-          if (
-            !window.confirm(
-              'Transferir para ' +
-                nome +
-                '? Você não faz parte dessa equipe e deixará de ver este chamado.',
-            )
-          ) {
-            s.value =
-              s.name === 'equipe' ? atual : estado.chamado.servico && estado.chamado.servico._id;
-            return;
-          }
+        if (destino && destino !== atual) {
+          var escolhido = s.value;
+          var nomeServico = s.options[s.selectedIndex].text;
+          // volta o campo até confirmar
+          s.value =
+            s.name === 'equipe' ? atual : estado.chamado.servico && estado.chamado.servico._id;
+          encaminha(
+            s.name === 'servico'
+              ? { destino: destino, fixo: true, servico: escolhido, nomeServico: nomeServico }
+              : { destino: destino },
+          );
+          return;
         }
         var rotulos = { equipe: 'Chamado transferido', status: 'Status atualizado' };
         altera(corpo, rotulos[s.name]);
@@ -1076,6 +1218,7 @@
         menu.hidden = true;
         var opcao = b.getAttribute('data-opcao');
         if (opcao === 'assumir') assume();
+        if (opcao === 'encaminhar') encaminha({});
         if (opcao === 'reabrir') altera({ status: 'em_atendimento' }, 'Chamado reaberto');
         if (opcao === 'voltar') window.location.href = equipe ? '/agente' : '/portal';
         if (opcao === 'copiar') {

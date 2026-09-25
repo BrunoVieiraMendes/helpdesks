@@ -127,7 +127,7 @@ const PERFIS = [
   {
     nome: 'Agentes Supervisores',
     tipo: 'agente',
-    permissoes: { verTodosChamados: true, reabrirChamados: true },
+    permissoes: { reabrirChamados: true },
   },
   { nome: 'Clientes', tipo: 'cliente', padrao: true, permissoes: {} },
   { nome: 'Clientes Gestores', tipo: 'cliente', permissoes: { verChamadosDaEmpresa: true } },

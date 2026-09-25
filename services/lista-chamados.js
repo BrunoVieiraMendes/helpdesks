@@ -73,6 +73,7 @@ const filtroDeSla = (valores) => {
  * - responsavel: id, "eu" ou "nenhum"
  * - equipe: id(s) ou "minhas"; servico: id(s)
  * - busca: número do chamado (#1024) ou trecho do título
+ * - parado: horas sem nenhuma atualização (ex.: 24)
  * @param {Record<string, any>} query
  * @param {import('./permissoes').UsuarioLogado} usuario
  * @param {{ ignorarStatus?: boolean }} [opcoes]
@@ -106,6 +107,14 @@ const montaFiltroDeChamados = (query, usuario, { ignorarStatus = false } = {}) =
 
   const sla = listaDaQuery(query.sla);
   if (sla.length) condicoes.push(filtroDeSla(sla));
+
+  if (query.parado !== undefined && query.parado !== '') {
+    const horas = Number(query.parado);
+    if (!Number.isInteger(horas) || horas < 1 || horas > 24 * 90) {
+      throw erroDeValidacao({ parado: 'Informe as horas sem atualização (1 a 2160)' });
+    }
+    filtro.updatedAt = { $lte: new Date(Date.now() - horas * 3600000) };
+  }
 
   // RBAC: cliente só os próprios, agente só os das suas equipes, admin todos.
   // Aplicado sempre, independentemente do que vier na query.
