@@ -75,6 +75,8 @@ const atualizaConfiguracao = async (dados) => {
   }
 
   await doc.save();
+  // o nome aparece no login e nos títulos (services/marca guarda em cache)
+  require('./marca').limpaCacheDaMarca();
   return doc.toObject();
 };
 

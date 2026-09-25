@@ -116,6 +116,9 @@ var Api = (function () {
     patch: function (caminho, corpo) {
       return req('PATCH', caminho, { corpo: corpo || {} });
     },
+    put: function (caminho, corpo) {
+      return req('PUT', caminho, { corpo: corpo || {} });
+    },
     login: async function (email, senha) {
       var dados = await req('POST', '/auth', { corpo: { email: email, senha: senha } });
       salvaSessao(dados.jwt, dados.usuario);

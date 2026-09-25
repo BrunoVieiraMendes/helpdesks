@@ -833,7 +833,7 @@
 
   function renderiza() {
     var c = estado.chamado;
-    document.title = '#' + c.numero + ' ' + c.titulo + ' · Help Desk';
+    document.title = '#' + c.numero + ' ' + c.titulo + ' · ' + HD.marca.nome;
     if (equipe) {
       Abas.abre({
         chave: 'chamado:' + c.numero,

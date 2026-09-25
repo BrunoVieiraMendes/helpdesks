@@ -12,6 +12,8 @@ const {
   verificaCaixa,
   processaEmailBruto,
   listaEmailsRecebidos,
+  salvaLogo,
+  removeLogo,
 } = require('../../services');
 const { erroDeValidacao } = require('../../utils');
 const { rota } = require('../../utils');
@@ -188,6 +190,40 @@ router.get(
   '/email/recebidos',
   rota(async (req, res) => {
     res.json({ sucesso: true, ...(await listaEmailsRecebidos(req.query)) });
+  }),
+);
+
+/**
+ * @openapi
+ * /v1/configuracoes/logo:
+ *   put:
+ *     summary: Troca a logo exibida no lugar do "HD" (admin)
+ *     description: 'Imagem PNG, JPG ou WebP em data URL (data:image/png;base64,...), até 512 KB.'
+ *     tags: [configurações]
+ *     security: [{ auth: [] }]
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema: { type: object, properties: { imagem: { type: string } } }
+ *     responses:
+ *       200: { description: '{ marca: { nome, logo } }' }
+ *       422: { description: Formato ou tamanho inválido }
+ *   delete:
+ *     summary: Remove a logo (volta ao "HD" padrão)
+ *     tags: [configurações]
+ *     security: [{ auth: [] }]
+ */
+router.put(
+  '/logo',
+  rota(async (req, res) => {
+    res.json({ sucesso: true, marca: await salvaLogo(req.body?.imagem) });
+  }),
+);
+
+router.delete(
+  '/logo',
+  rota(async (_req, res) => {
+    res.json({ sucesso: true, marca: await removeLogo() });
   }),
 );
 

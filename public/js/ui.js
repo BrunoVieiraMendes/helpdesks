@@ -451,6 +451,17 @@ var Ui = (function () {
     );
   }
 
+  // logo da empresa (Configurações > Empresa e parâmetros) ou o "HD" padrão
+  function logoHtml() {
+    return HD.marca.logo
+      ? '<img class="imagem-logo" src="' +
+          esc(HD.marca.logo) +
+          '" alt="' +
+          esc(HD.marca.nome) +
+          '" />'
+      : '<span class="logo">HD</span>';
+  }
+
   /** Menu lateral (ícones) e barra do topo conforme o papel do usuário logado. */
   function navbar(usuario) {
     var menu = $('#menu-lateral');
@@ -527,7 +538,11 @@ var Ui = (function () {
     );
 
     menu.innerHTML =
-      '<a class="marca-lateral" href="/" title="Help Desk"><span class="logo">HD</span></a>' +
+      '<a class="marca-lateral" href="/" title="' +
+      esc(HD.marca.nome) +
+      '">' +
+      logoHtml() +
+      '</a>' +
       '<nav class="itens-menu">' +
       principais.map(itemMenu).join('') +
       '</nav><div class="itens-menu rodape-menu">' +
@@ -625,6 +640,7 @@ var Ui = (function () {
     opcoes: opcoes,
     debounce: debounce,
     navbar: navbar,
+    logoHtml: logoHtml,
     paginacao: paginacao,
   };
 })();

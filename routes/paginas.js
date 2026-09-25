@@ -13,6 +13,9 @@ const {
   PUBLICOS_DE_AVISO,
 } = require('../constants');
 
+const { resumoDaMarca, imagemDaLogo } = require('../services/marca');
+const { logger } = require('../utils');
+
 const router = express.Router();
 
 // Regras de domínio expostas às telas (window.HD), para não duplicar rótulos no front.
@@ -31,11 +34,38 @@ const DOMINIO = Object.freeze({
   publicosDeAviso: PUBLICOS_DE_AVISO,
 });
 
-router.use((_req, res, next) => {
+router.use(async (_req, res, next) => {
   res.locals.dominio = DOMINIO;
   res.locals.area = '';
   res.locals.aba = '';
+  // logo e nome da empresa (no lugar do "HD"); falha no banco não derruba a página
+  try {
+    res.locals.marca = await resumoDaMarca();
+  } catch (e) {
+    logger.error(`Falha ao carregar a marca: ${e.message}`);
+    res.locals.marca = { nome: 'Help Desk', logo: null };
+  }
+  // JSON seguro dentro de <script>
+  res.locals.marcaJson = JSON.stringify(res.locals.marca).replace(/</g, '\\u003c');
   next();
+});
+
+// Logo da empresa (pública: a tela de login também usa). A versão na URL deixa o
+// navegador guardar em cache até a próxima troca.
+router.get('/marca/logo', async (req, res, next) => {
+  try {
+    const logo = await imagemDaLogo();
+    if (!logo) return res.status(404).end();
+    res.set({
+      'Content-Type': logo.tipo,
+      'Cache-Control': req.query.v ? 'public, max-age=31536000, immutable' : 'no-cache',
+      'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy': "default-src 'none'",
+    });
+    return res.send(logo.dados);
+  } catch (e) {
+    return next(e);
+  }
 });
 
 // As páginas são "cascas" EJS: os dados vêm da API /v1 pelo JS do navegador,

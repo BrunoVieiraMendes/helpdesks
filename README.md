@@ -131,6 +131,14 @@ O **sino** na barra do topo (agentes e admins) avisa quando um chamado é **aber
 
 O painel `/admin` reúne as configurações em cinco grupos: Conta, Pessoas, Chamados, Campos adicionais e Atendimento.
 
+**Sua marca no sistema:** em **Empresa e parâmetros**, o admin envia a **logo da empresa** (PNG, JPG ou WebP). Ela substitui o "HD" no menu lateral, na tela de login e no ícone da aba do navegador. O **nome da empresa** aparece no login e no título das abas.
+
+- Imagens grandes são reduzidas no navegador antes do envio (lado maior até 512 px, máximo de 512 KB).
+- A logo fica no banco e é servida em `/marca/logo`.
+- SVG não é aceito, porque pode conter código.
+- "Voltar ao HD padrão" remove a logo.
+- API: `PUT /v1/configuracoes/logo` e `DELETE /v1/configuracoes/logo`.
+
 | Grupo                  | Item                         | O que faz                                                                                    |
 | ---------------------- | ---------------------------- | -------------------------------------------------------------------------------------------- |
 | Conta                  | Empresa / Parâmetros         | nome da conta e dias até o fechamento automático de chamados resolvidos                      |

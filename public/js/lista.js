@@ -159,7 +159,7 @@
           .join('')
       : '<p class="vazio-visoes">Filtre a fila e use <strong>Opções &gt; Salvar como visualização pessoal</strong>.</p>';
     Ui.$('#titulo-visao').textContent = atual ? atual.nome : 'Filtro personalizado';
-    document.title = (atual ? atual.nome : 'Fila de chamados') + ' · Help Desk';
+    document.title = (atual ? atual.nome : 'Fila de chamados') + ' · ' + HD.marca.nome;
 
     // quantos filtros estão ligados (fora a busca e a ordenação)
     var n = assinatura(estado.filtros) ? assinatura(estado.filtros).split('&').length : 0;

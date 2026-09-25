@@ -84,5 +84,6 @@ module.exports = {
   processaEmailBruto: require('./email-entrada').processaEmailBruto,
   listaEmailsRecebidos: require('./email-entrada').listaEmailsRecebidos,
   ...require('./email-imap'),
+  ...require('./marca'),
   fechaResolvidos: require('./fecha-resolvidos'),
 };

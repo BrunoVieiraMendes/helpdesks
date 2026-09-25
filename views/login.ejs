@@ -1,7 +1,7 @@
 <%- include('partials/head') %>
 <main class="tela-login">
   <section class="lado-marca">
-    <div class="marca-login"><span class="logo">HD</span> Help Desk</div>
+    <div class="marca-login<%= marca.logo ? ' com-imagem' : '' %>"><% if (marca.logo) { %><img class="imagem-logo" src="<%= marca.logo %>" alt="<%= marca.nome %>" /><% } else { %><span class="logo">HD</span><% } %> <%= marca.nome %></div>
     <div class="chamada-login">
       <h1>Atendimento organizado, cliente satisfeito.</h1>
       <p>Chamados, prazos de SLA e indicadores da sua equipe em um só lugar.</p>
@@ -11,12 +11,12 @@
         <li>Indicadores e relatórios prontos para exportar</li>
       </ul>
     </div>
-    <p class="rodape-marca">Help Desk · Central de atendimento</p>
+    <p class="rodape-marca"><%= marca.nome %> · Central de atendimento</p>
   </section>
 
   <section class="lado-formulario">
     <div class="cartao-login">
-      <div class="marca-login compacta"><span class="logo">HD</span> Help Desk</div>
+      <div class="marca-login compacta<%= marca.logo ? ' com-imagem' : '' %>"><% if (marca.logo) { %><img class="imagem-logo" src="<%= marca.logo %>" alt="<%= marca.nome %>" /><% } else { %><span class="logo">HD</span><% } %> <%= marca.nome %></div>
       <h2>Entrar na sua conta</h2>
       <p class="subtitulo-login">Use seu e-mail e senha para acessar.</p>
       <div id="aviso"></div>

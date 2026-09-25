@@ -2533,16 +2533,146 @@
     );
   }
 
+  // ---------------------------------------------------------------- logo da empresa
+  var LADO_MAXIMO_LOGO = 512;
+  var TIPOS_LOGO = ['image/png', 'image/jpeg', 'image/webp'];
+
+  function previaLogo(src) {
+    var imagem = src
+      ? '<img class="imagem-logo" src="' + Ui.esc(src) + '" alt="Prévia da logo" />'
+      : '<span class="logo">HD</span>';
+    return (
+      '<div class="previas-logo"><div class="previa-logo escura"><span class="suave">Menu lateral</span><div class="marca-lateral">' +
+      imagem +
+      '</div></div><div class="previa-logo clara"><span class="suave">Tela de login</span><div class="marca-login compacta' +
+      (src ? ' com-imagem' : '') +
+      '">' +
+      imagem +
+      ' ' +
+      Ui.esc(HD.marca.nome) +
+      '</div></div></div>'
+    );
+  }
+
+  // reduz imagens grandes no navegador (lado maior até 512 px), mantendo a transparência
+  function preparaLogo(arquivo) {
+    return new Promise(function (resolve, reject) {
+      if (TIPOS_LOGO.indexOf(arquivo.type) === -1) {
+        return reject(new Error('Use uma imagem PNG, JPG ou WebP'));
+      }
+      if (arquivo.size > 5 * 1024 * 1024)
+        return reject(new Error('Imagem muito grande (máximo 5 MB)'));
+      var leitor = new FileReader();
+      leitor.onerror = function () {
+        reject(new Error('Não foi possível ler a imagem'));
+      };
+      leitor.onload = function () {
+        var img = new Image();
+        img.onerror = function () {
+          reject(new Error('O arquivo não é uma imagem válida'));
+        };
+        img.onload = function () {
+          var escala = Math.min(1, LADO_MAXIMO_LOGO / Math.max(img.width, img.height));
+          if (escala === 1 && arquivo.size <= 400 * 1024) return resolve(leitor.result);
+          var canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(img.width * escala));
+          canvas.height = Math.max(1, Math.round(img.height * escala));
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(
+            arquivo.type === 'image/jpeg'
+              ? canvas.toDataURL('image/jpeg', 0.9)
+              : canvas.toDataURL('image/png'),
+          );
+        };
+        img.src = leitor.result;
+      };
+      leitor.readAsDataURL(arquivo);
+    });
+  }
+
+  // troca a logo na tela na hora (menu lateral e ícone da aba), sem recarregar
+  function aplicaMarcaNaTela(marca) {
+    HD.marca = marca;
+    var lateral = document.querySelector('#menu-lateral .marca-lateral');
+    if (lateral) lateral.innerHTML = Ui.logoHtml();
+    var icone = document.querySelector('link[rel="icon"]');
+    if (icone && marca.logo) icone.href = marca.logo;
+  }
+
+  function ligaLogo() {
+    var pendente = null;
+    var entrada = Ui.$('#arquivo-logo');
+    var salvar = Ui.$('#salvar-logo');
+    var aviso = Ui.$('#aviso-logo');
+    entrada.addEventListener('change', async function () {
+      aviso.innerHTML = '';
+      var arquivo = entrada.files[0];
+      if (!arquivo) return;
+      try {
+        pendente = await preparaLogo(arquivo);
+        Ui.$('#previa-logo').innerHTML = previaLogo(pendente);
+        Ui.$('#nome-arquivo-logo').textContent = arquivo.name;
+        salvar.disabled = false;
+      } catch (e) {
+        pendente = null;
+        salvar.disabled = true;
+        aviso.innerHTML = '<div class="alerta erro">' + Ui.esc(e.message) + '</div>';
+      }
+    });
+    salvar.addEventListener('click', async function () {
+      if (!pendente) return;
+      var restaura = Ui.ocupado(salvar, 'Salvando...');
+      try {
+        var r = await Api.put('/configuracoes/logo', { imagem: pendente });
+        aplicaMarcaNaTela(r.marca);
+        Ui.toast('Logo atualizada', 'sucesso');
+        secaoParametros();
+      } catch (e) {
+        restaura();
+        aviso.innerHTML =
+          '<div class="alerta erro">' +
+          Ui.esc(e.detalhes ? Object.values(e.detalhes)[0] : e.message) +
+          '</div>';
+      }
+    });
+    var remover = Ui.$('#remover-logo');
+    if (remover) {
+      remover.addEventListener('click', async function () {
+        if (!window.confirm('Remover a logo e voltar ao "HD" padrão?')) return;
+        try {
+          await Api.del('/configuracoes/logo');
+          // recarrega para o "HD" padrão voltar em todos os lugares (inclusive o ícone da aba)
+          window.location.reload();
+        } catch (e) {
+          Ui.toast(e.message, 'erro');
+        }
+      });
+    }
+  }
+
   async function secaoParametros() {
     barra.innerHTML = '';
     var c = await carregaConfiguracao();
     conteudo.innerHTML =
+      '<section class="cartao formulario-config cartao-logo"><h2>Logo da empresa</h2>' +
+      '<p class="suave">Aparece no lugar do "HD": menu lateral, tela de login e ícone da aba do navegador.</p>' +
+      '<div id="previa-logo">' +
+      previaLogo(HD.marca.logo) +
+      '</div><div id="aviso-logo"></div>' +
+      '<div class="acoes-logo"><label class="botao" for="arquivo-logo">Escolher imagem</label>' +
+      '<input type="file" id="arquivo-logo" accept="image/png,image/jpeg,image/webp" class="sr-only" />' +
+      '<span class="suave pequeno" id="nome-arquivo-logo">PNG, JPG ou WebP. De preferência quadrada e com fundo transparente.</span>' +
+      '<button type="button" class="botao primario" id="salvar-logo" disabled>Salvar logo</button>' +
+      (HD.marca.logo
+        ? '<button type="button" class="botao perigo" id="remover-logo">Voltar ao "HD" padrão</button>'
+        : '') +
+      '</div></section>' +
       '<form class="cartao formulario-config" id="form-parametros" novalidate>' +
       '<div class="aviso-form"></div>' +
       '<h2>Empresa</h2>' +
       '<div class="campo"><label for="par-nome">Nome da empresa</label><input id="par-nome" name="nomeEmpresa" value="' +
       Ui.esc(c.nomeEmpresa) +
-      '" maxlength="120" /><span class="ajuda">Quem presta o atendimento</span></div>' +
+      '" maxlength="120" /><span class="ajuda">Quem presta o atendimento. Aparece na tela de login e no título das abas do navegador.</span></div>' +
       '<h2>Parâmetros de atendimento</h2>' +
       '<div class="campo"><label for="par-dias">Fechar automaticamente chamados resolvidos após (dias)</label><input id="par-dias" type="number" min="1" max="90" name="diasFechamentoAutomatico" value="' +
       c.diasFechamentoAutomatico +
@@ -2550,6 +2680,7 @@
       '<div class="acoes-form"><button class="botao primario" type="submit">Salvar parâmetros</button></div>' +
       '</form>';
 
+    ligaLogo();
     ligaFormulario(
       Ui.$('#form-parametros'),
       function (f) {
@@ -3271,7 +3402,7 @@
     // as listas trocam pela contagem de registros
     Ui.$('#contagem').textContent = secao.descricao;
     mostraAjuda('');
-    document.title = secao.titulo + ' · Configurações · Help Desk';
+    document.title = secao.titulo + ' · Configurações · ' + HD.marca.nome;
 
     try {
       if (!conteudo.children.length || conteudo.getAttribute('data-secao') !== nome) {
