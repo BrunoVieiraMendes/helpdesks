@@ -202,6 +202,7 @@ const processaMensagem = async (msg) => {
             tipo: TIPOS_INTERACAO.PUBLICA,
           },
           logado,
+          { canal: 'email' },
         );
         return fim('resposta', `Resposta adicionada ao chamado #${chamado.numero}`, chamado.numero);
       }

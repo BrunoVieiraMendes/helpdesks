@@ -1033,6 +1033,14 @@
         { nome: 'nome', rotulo: 'Nome', valor: u && u.nome, obrigatorio: true },
         { nome: 'email', rotulo: 'E-mail', tipo: 'email', valor: u && u.email, obrigatorio: true },
         {
+          nome: 'whatsapp',
+          rotulo: 'WhatsApp',
+          tipo: 'tel',
+          valor: u && u.whatsapp ? formataWhatsapp(u.whatsapp) : '',
+          ajuda:
+            'Com DDD, ex.: (11) 98765-4321. As mensagens deste número entram nos chamados da pessoa.',
+        },
+        {
           nome: 'senha',
           rotulo: u ? 'Nova senha' : 'Senha',
           tipo: 'password',
@@ -1103,6 +1111,7 @@
         function alterna(trocouTipo) {
           form.querySelector('[data-campo="equipes"]').hidden = papel.value === 'cliente';
           form.querySelector('[data-campo="empresa"]').hidden = papel.value !== 'cliente';
+          form.querySelector('[data-campo="whatsapp"]').hidden = papel.value !== 'cliente';
           form.querySelector('[data-campo="perfil"]').hidden = papel.value === 'admin';
           if (trocouTipo) {
             perfil.innerHTML = Ui.opcoes(
@@ -1119,7 +1128,10 @@
       },
       aoSalvar: function (v) {
         if (v.papel === 'cliente') v.equipes = [];
-        else v.empresa = null;
+        else {
+          v.empresa = null;
+          v.whatsapp = '';
+        }
         if (v.papel === 'admin') v.perfil = null;
         ['empresa', 'perfil', 'cargo', 'classificacao'].forEach(function (campo) {
           v[campo] = v[campo] || null;
@@ -1128,6 +1140,12 @@
         return u ? Api.patch('/usuarios/' + u._id, v) : Api.post('/usuarios', v);
       },
     });
+  }
+
+  // "5511987654321" -> "+55 11 98765-4321"
+  function formataWhatsapp(n) {
+    var br = /^55(\d{2})(\d{4,5})(\d{4})$/.exec(n || '');
+    return br ? '+55 ' + br[1] + ' ' + br[2] + '-' + br[3] : n ? '+' + n : '';
   }
 
   function nomePerfilDe(u) {
@@ -1154,6 +1172,12 @@
           titulo: 'E-mail',
           classe: 'ocultar-mobile',
           valor: function (u) {
+            // cadastrado pelo WhatsApp: o e-mail é só uma marcação (.invalid)
+            if (/\.invalid$/.test(u.email) && u.whatsapp) {
+              return (
+                '<span class="suave">WhatsApp ' + Ui.esc(formataWhatsapp(u.whatsapp)) + '</span>'
+              );
+            }
             return Ui.esc(u.email);
           },
         },
@@ -3193,6 +3217,413 @@
     carregaLogEmail(1);
   }
 
+  // ================================================================ WHATSAPP
+  // Conta oficial da Meta (WhatsApp Cloud API): webhook, token, serviço dos chamados,
+  // mensagens automáticas, teste de conexão, simulação e log das mensagens.
+  var ROTULOS_WHATSAPP = {
+    'novo-chamado': ['Chamado aberto', 'ok'],
+    resposta: ['Entrou no chamado', 'ok'],
+    ignorado: ['Ignorada', 'neutro'],
+    duplicado: ['Já processada', 'neutro'],
+    erro: ['Erro', 'falha'],
+    processando: ['Processando', 'neutro'],
+    aguardando: ['Aguardando o cliente', 'neutro'],
+    enviada: ['Enviada', 'ok'],
+    entregue: ['Entregue', 'ok'],
+    lida: ['Lida', 'ok'],
+    falha: ['Falhou', 'falha'],
+  };
+  var filtroLogWhatsapp = '';
+
+  function chipWhatsapp(resultado) {
+    var r = ROTULOS_WHATSAPP[resultado] || [resultado, 'neutro'];
+    return '<span class="chip-resultado ' + r[1] + '">' + r[0] + '</span>';
+  }
+
+  function campoSegredo(nome, rotulo, definido, ajuda) {
+    return campoTexto(nome, rotulo, '', {
+      tipo: 'password',
+      placeholder: definido ? '•••••••• (definido — deixe em branco para manter)' : '',
+      atributos: ' autocomplete="new-password"',
+      ajuda: ajuda + (definido ? ' Fica guardado criptografado e nunca é exibido.' : ''),
+      classe: 'largo',
+    });
+  }
+
+  function campoCopiavel(id, rotulo, valor, extraBotao) {
+    return (
+      '<div class="campo largo"><label for="' +
+      id +
+      '">' +
+      rotulo +
+      '</label><div class="linha-copiavel"><input id="' +
+      id +
+      '" type="text" readonly value="' +
+      Ui.esc(valor) +
+      '" /><button type="button" class="botao pequeno" data-copiar="' +
+      id +
+      '">Copiar</button>' +
+      (extraBotao || '') +
+      '</div></div>'
+    );
+  }
+
+  function linhaLogWhatsapp(m) {
+    var entrada = m.direcao === 'entrada';
+    return (
+      '<tr><td class="data-log">' +
+      Ui.data(m.createdAt) +
+      '</td><td><span class="direcao-whatsapp ' +
+      m.direcao +
+      '">' +
+      (entrada ? 'Recebida' : 'Enviada') +
+      '</span></td><td>' +
+      Ui.esc(m.nome || '—') +
+      '<div class="suave pequeno">' +
+      Ui.esc(formataWhatsapp(m.numero)) +
+      '</div></td><td class="assunto-log">' +
+      Ui.esc((m.texto || '').slice(0, 140) + ((m.texto || '').length > 140 ? '...' : '')) +
+      '</td><td>' +
+      chipWhatsapp(m.resultado) +
+      '</td><td>' +
+      (m.numeroChamado
+        ? '<a href="/chamados/' + m.numeroChamado + '">#' + m.numeroChamado + '</a>'
+        : '—') +
+      '</td><td class="suave detalhe-log-email">' +
+      Ui.esc(m.detalhe || '') +
+      '</td></tr>'
+    );
+  }
+
+  async function carregaLogWhatsapp(pagina) {
+    var alvo = Ui.$('#log-whatsapp');
+    if (!alvo) return;
+    try {
+      var r = await Api.get('/configuracoes/whatsapp/mensagens', {
+        pagina: pagina || 1,
+        porPagina: 15,
+        direcao: filtroLogWhatsapp,
+      });
+      alvo.innerHTML = r.mensagens.length
+        ? '<div class="tabela-container"><table class="admin-tabela tabela-log-email"><thead><tr><th>Data</th><th>Direção</th><th>Contato</th><th>Mensagem</th><th>Situação</th><th>Chamado</th><th>Detalhe</th></tr></thead><tbody>' +
+          r.mensagens.map(linhaLogWhatsapp).join('') +
+          '</tbody></table></div><div class="paginacao" id="paginacao-log-whatsapp"></div>'
+        : Ui.vazio(
+            'Nenhuma mensagem ainda',
+            'As mensagens recebidas e enviadas pelo WhatsApp aparecem aqui, com o que aconteceu com cada uma.',
+          );
+      var pag = Ui.$('#paginacao-log-whatsapp');
+      if (pag) Ui.paginacao(pag, r.paginacao, carregaLogWhatsapp);
+    } catch (e) {
+      alvo.innerHTML = Ui.erro(e.message);
+    }
+  }
+
+  function situacaoWhatsapp(c) {
+    var conexao = c.ultimoErro
+      ? '<strong class="texto-perigo">' + Ui.esc(c.ultimoErro) + '</strong>'
+      : c.numeroExibicao
+        ? '<strong>' +
+          Ui.esc(c.numeroExibicao) +
+          (c.nomeVerificado ? ' · ' + Ui.esc(c.nomeVerificado) : '') +
+          '</strong>'
+        : '<strong>Ainda não testada</strong>';
+    return (
+      '<ul class="situacao-email">' +
+      '<li><span>Canal</span><strong>' +
+      (c.ativo ? 'Ativo' : 'Desativado') +
+      '</strong></li>' +
+      '<li><span>Número na Meta</span>' +
+      conexao +
+      '</li>' +
+      '<li><span>Último aviso da Meta</span><strong>' +
+      (c.ultimoRecebimento ? Ui.relativo(c.ultimoRecebimento) : 'Nenhum ainda') +
+      '</strong></li></ul>'
+    );
+  }
+
+  async function secaoWhatsapp() {
+    barra.innerHTML = '';
+    var resp = await Promise.all([Api.get('/configuracoes/whatsapp'), Api.get('/servicos')]);
+    var c = resp[0].whatsapp;
+    var servicos = resp[1].servicos;
+    var urlWebhook = window.location.origin + '/v1/whatsapp/webhook';
+    var local = /^(localhost|127\.|\[::1\])/.test(window.location.hostname);
+
+    conteudo.innerHTML =
+      '<div class="grade-email">' +
+      '<form class="formulario-email" id="form-whatsapp" novalidate autocomplete="off">' +
+      '<div class="aviso-form"></div>' +
+      // passo a passo
+      '<section class="cartao bloco-email"><div class="cabeca-bloco-email"><h2>Como conectar</h2>' +
+      '<p class="suave">Usa a API oficial do WhatsApp (Meta): sem risco de bloqueio do número. O número usado aqui não pode estar ativo no aplicativo do celular.</p></div>' +
+      '<ol class="passos-whatsapp">' +
+      '<li>Em <strong>developers.facebook.com</strong>, crie um app do tipo <em>Empresa</em> e adicione o produto <strong>WhatsApp</strong>.</li>' +
+      '<li>Em <em>WhatsApp &gt; Configuração da API</em>, copie a <strong>identificação do número de telefone</strong>.</li>' +
+      '<li>Gere um <strong>token permanente</strong> (Configurações do negócio &gt; Usuários do sistema) com a permissão <em>whatsapp_business_messaging</em>. O token temporário do painel vale só 24 horas.</li>' +
+      '<li>Em <em>Configurações do app &gt; Básico</em>, copie a <strong>chave secreta do app</strong>.</li>' +
+      '<li>Em <em>WhatsApp &gt; Configuração &gt; Webhook</em>, cole a URL e o token de verificação abaixo e assine o campo <strong>messages</strong>.</li>' +
+      '</ol>' +
+      '<div class="grade-campos-email">' +
+      campoCopiavel('wa-url', 'URL de retorno (webhook)', urlWebhook) +
+      campoCopiavel(
+        'wa-verificacao',
+        'Token de verificação',
+        c.tokenVerificacao,
+        '<button type="button" class="botao pequeno" id="wa-novo-token">Gerar outro</button>',
+      ) +
+      '</div>' +
+      (local
+        ? '<div class="alerta info">Você está acessando por <strong>' +
+          Ui.esc(window.location.host) +
+          '</strong>. A Meta só entrega avisos para um endereço público com HTTPS: em produção use o domínio do sistema (para testar localmente, um túnel como o ngrok).</div>'
+        : '') +
+      '</section>' +
+      // conta
+      '<section class="cartao bloco-email"><div class="cabeca-bloco-email"><h2>Conta da Meta ' +
+      selo(c.ativo, 'Ativo', 'Desativado') +
+      '</h2><p class="suave">Dados do app e do número no painel da Meta.</p></div>' +
+      interruptorEmail(
+        'ativo',
+        'Atender pelo WhatsApp',
+        c.ativo,
+        'Mensagens recebidas abrem chamados, e as respostas da equipe voltam pelo WhatsApp.',
+      ) +
+      '<div class="grade-campos-email">' +
+      campoTexto('numeroId', 'Identificação do número de telefone', c.numeroId, {
+        placeholder: 'ex.: 106540352242922',
+        atributos: ' inputmode="numeric"',
+      }) +
+      campoTexto('contaId', 'Identificação da conta do WhatsApp Business', c.contaId, {
+        placeholder: 'Opcional',
+        atributos: ' inputmode="numeric"',
+      }) +
+      campoSegredo(
+        'token',
+        'Token de acesso',
+        c.tokenDefinido,
+        'Token permanente do usuário do sistema.',
+      ) +
+      campoSegredo(
+        'segredo',
+        'Chave secreta do app',
+        c.segredoDefinido,
+        'Confere que cada aviso veio mesmo da Meta.',
+      ) +
+      campoTexto('versaoApi', 'Versão da API', c.versaoApi, { placeholder: 'v21.0' }) +
+      '</div></section>' +
+      // chamados
+      '<section class="cartao bloco-email"><div class="cabeca-bloco-email"><h2>Chamados pelo WhatsApp</h2>' +
+      '<p class="suave">Cada conversa nova abre um chamado. Enquanto o chamado não é fechado, as mensagens do cliente entram nele (se estava resolvido, volta para Em Atendimento).</p></div>' +
+      '<div class="grade-campos-email">' +
+      '<div class="campo largo"><label for="wa-servico">Serviço dos chamados abertos pelo WhatsApp</label><select id="wa-servico" name="servicoPadrao">' +
+      Ui.opcoes(
+        servicos.map(function (s) {
+          return { valor: s._id, rotulo: s.nome + (s.equipe ? ' (' + s.equipe.nome + ')' : '') };
+        }),
+        c.servicoPadrao,
+        'Selecione...',
+      ) +
+      '</select><span class="ajuda">Define a equipe que recebe os chamados. A equipe pode reclassificar depois.</span></div>' +
+      '<div class="campo campo-check-email largo"><label class="checkbox-linha"><input type="checkbox" name="criarClientes"' +
+      (c.criarClientes ? ' checked' : '') +
+      ' /> Cadastrar automaticamente quem ainda não é cliente</label><span class="ajuda">O cliente é cadastrado com o nome do perfil do WhatsApp. Desmarcado, só números já cadastrados em Pessoas são atendidos.</span></div>' +
+      '</div></section>' +
+      // mensagens automáticas
+      '<section class="cartao bloco-email"><div class="cabeca-bloco-email"><h2>Mensagens para o cliente</h2>' +
+      '<p class="suave">Notas internas nunca vão para o WhatsApp.</p></div>' +
+      '<div class="lista-avisos-email">' +
+      interruptorEmail(
+        'avisos.confirmacaoCliente',
+        'Confirmar a abertura do chamado',
+        c.avisos.confirmacaoCliente,
+        'Responde na hora com o número do chamado.',
+      ) +
+      interruptorEmail(
+        'avisos.respostaParaCliente',
+        'Enviar as respostas da equipe',
+        c.avisos.respostaParaCliente,
+        'Cada resposta pública do chamado vai para o WhatsApp do cliente.',
+      ) +
+      '</div>' +
+      '<p class="suave pequeno texto-janela">A Meta só aceita mensagens livres até <strong>24 horas</strong> depois da última mensagem do cliente. Depois disso, a resposta fica guardada e é entregue quando ele escrever de novo. Para chamá-lo nesse caso, informe um <strong>modelo aprovado</strong> na Meta com uma variável ({{1}}), que recebe o número do chamado. Ex.: "Há uma nova resposta no seu chamado #{{1}}. Responda esta mensagem para vê-la."</p>' +
+      '<div class="grade-campos-email">' +
+      campoTexto('modelo.nome', 'Nome do modelo aprovado', c.modelo.nome, {
+        placeholder: 'ex.: nova_resposta_chamado (opcional)',
+        classe: 'largo',
+      }) +
+      campoTexto('modelo.idioma', 'Idioma do modelo', c.modelo.idioma, { placeholder: 'pt_BR' }) +
+      '</div></section>' +
+      '<div class="acoes-form rodape-form-email"><button class="botao primario" type="submit">Salvar configurações do WhatsApp</button></div>' +
+      '</form>' +
+      // lateral
+      '<aside class="lateral-email">' +
+      '<section class="cartao bloco-email"><h2>Situação</h2>' +
+      situacaoWhatsapp(c) +
+      '<div class="botoes-email"><button type="button" class="botao" id="wa-testar">Testar conexão</button></div>' +
+      '<p class="suave pequeno">Confere o token e o número na Meta. Salve antes de testar.</p></section>' +
+      '<section class="cartao bloco-email"><h2>Simular mensagem recebida</h2>' +
+      '<p class="suave pequeno">Faz o Help Desk tratar a mensagem como se tivesse chegado pelo WhatsApp. O resultado é real: um chamado pode ser aberto.</p>' +
+      '<form id="form-simular-whatsapp" novalidate>' +
+      '<div class="campo"><label for="wa-sim-numero">WhatsApp do cliente</label><input id="wa-sim-numero" name="numero" type="tel" placeholder="(11) 98765-4321" /></div>' +
+      '<div class="campo"><label for="wa-sim-nome">Nome no perfil</label><input id="wa-sim-nome" name="nome" type="text" placeholder="Opcional" /></div>' +
+      '<div class="campo"><label for="wa-sim-texto">Mensagem</label><textarea id="wa-sim-texto" name="texto" rows="4">Olá! Não consigo acessar o sistema desde ontem.</textarea></div>' +
+      '<button type="submit" class="botao">Processar mensagem</button></form>' +
+      '<div id="resultado-simulacao-whatsapp"></div></section>' +
+      '</aside></div>' +
+      '<section class="cartao bloco-email log-email-cartao"><div class="cabeca-bloco-email"><h2>Mensagens</h2>' +
+      '<div class="acoes-log-whatsapp"><select id="filtro-log-whatsapp" aria-label="Filtrar mensagens">' +
+      Ui.opcoes(
+        [
+          { valor: '', rotulo: 'Recebidas e enviadas' },
+          { valor: 'entrada', rotulo: 'Só recebidas' },
+          { valor: 'saida', rotulo: 'Só enviadas' },
+        ],
+        filtroLogWhatsapp,
+      ) +
+      '</select><button type="button" class="botao pequeno" id="atualizar-log-whatsapp">Atualizar</button></div></div>' +
+      '<div id="log-whatsapp">' +
+      Ui.carregando() +
+      '</div></section>';
+
+    var form = Ui.$('#form-whatsapp');
+
+    conteudo.querySelectorAll('[data-copiar]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var campo = Ui.$('#' + b.getAttribute('data-copiar'));
+        campo.select();
+        var ok = function () {
+          Ui.toast('Copiado', 'sucesso');
+        };
+        (navigator.clipboard ? navigator.clipboard.writeText(campo.value) : Promise.reject())
+          .then(ok)
+          .catch(function () {
+            try {
+              document.execCommand('copy');
+              ok();
+            } catch (_e) {
+              Ui.toast('Selecione e copie com Ctrl+C', 'erro');
+            }
+          });
+      });
+    });
+
+    Ui.$('#wa-novo-token').addEventListener('click', async function (e) {
+      if (
+        !window.confirm(
+          'Gerar outro token de verificação? O atual deixa de valer: se o webhook já estiver cadastrado na Meta, cadastre-o de novo com o token novo.',
+        )
+      ) {
+        return;
+      }
+      var restaura = Ui.ocupado(e.currentTarget, 'Gerando...');
+      try {
+        var r = await Api.post('/configuracoes/whatsapp/token-verificacao', {});
+        Ui.$('#wa-verificacao').value = r.whatsapp.tokenVerificacao;
+        Ui.toast('Novo token gerado', 'sucesso');
+      } catch (erro) {
+        Ui.toast(erro.message, 'erro');
+      } finally {
+        restaura();
+      }
+    });
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      Ui.errosDeCampo(form, {});
+      var aviso = form.querySelector('.aviso-form');
+      aviso.innerHTML = '';
+      var v = function (n) {
+        return form.elements[n].value;
+      };
+      var marcado = function (n) {
+        return form.elements[n].checked;
+      };
+      var corpo = {
+        ativo: marcado('ativo'),
+        numeroId: v('numeroId'),
+        contaId: v('contaId'),
+        versaoApi: v('versaoApi'),
+        servicoPadrao: v('servicoPadrao') || null,
+        criarClientes: marcado('criarClientes'),
+        avisos: {
+          confirmacaoCliente: marcado('avisos.confirmacaoCliente'),
+          respostaParaCliente: marcado('avisos.respostaParaCliente'),
+        },
+        modelo: { nome: v('modelo.nome'), idioma: v('modelo.idioma') || 'pt_BR' },
+      };
+      // segredos só vão quando foram digitados (em branco mantém os atuais)
+      if (v('token')) corpo.token = v('token');
+      if (v('segredo')) corpo.segredo = v('segredo');
+      var restaura = Ui.ocupado(form.querySelector('[type=submit]'), 'Salvando...');
+      try {
+        await Api.patch('/configuracoes/whatsapp', corpo);
+        Ui.toast('Configurações do WhatsApp salvas', 'sucesso');
+        await secaoWhatsapp();
+      } catch (erro) {
+        restaura();
+        Ui.errosDeCampo(form, erro.detalhes);
+        aviso.innerHTML = '<div class="alerta erro">' + Ui.esc(erro.message) + '</div>';
+        var primeiro = form.querySelector('.campo.invalido');
+        if (primeiro) primeiro.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+    });
+
+    Ui.$('#wa-testar').addEventListener('click', async function (e) {
+      var restaura = Ui.ocupado(e.currentTarget, 'Testando...');
+      try {
+        var r = await Api.post('/configuracoes/whatsapp/testar', {});
+        Ui.toast(
+          'Conectado! ' + r.numeroExibicao + (r.nomeVerificado ? ' · ' + r.nomeVerificado : ''),
+          'sucesso',
+        );
+      } catch (erro) {
+        Ui.toast(erro.message, 'erro');
+      } finally {
+        restaura();
+      }
+      var atual = await Api.get('/configuracoes/whatsapp');
+      var lista = conteudo.querySelector('.lateral-email .situacao-email');
+      if (lista) lista.outerHTML = situacaoWhatsapp(atual.whatsapp);
+    });
+
+    var formSimular = Ui.$('#form-simular-whatsapp');
+    formSimular.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      Ui.errosDeCampo(formSimular, {});
+      var restaura = Ui.ocupado(formSimular.querySelector('[type=submit]'), 'Processando...');
+      try {
+        var r = await Api.post('/configuracoes/whatsapp/simular', {
+          numero: formSimular.elements.numero.value,
+          nome: formSimular.elements.nome.value,
+          texto: formSimular.elements.texto.value,
+        });
+        Ui.$('#resultado-simulacao-whatsapp').innerHTML =
+          '<div class="resultado-simulacao">' +
+          chipWhatsapp(r.resultado) +
+          ' ' +
+          Ui.esc(r.detalhe || '') +
+          (r.numero ? ' <a href="/chamados/' + r.numero + '">Abrir #' + r.numero + '</a>' : '') +
+          '</div>';
+        carregaLogWhatsapp(1);
+      } catch (erro) {
+        Ui.errosDeCampo(formSimular, erro.detalhes);
+        if (!erro.detalhes) Ui.toast(erro.message, 'erro');
+      } finally {
+        restaura();
+      }
+    });
+
+    Ui.$('#filtro-log-whatsapp').addEventListener('change', function (e) {
+      filtroLogWhatsapp = e.target.value;
+      carregaLogWhatsapp(1);
+    });
+    Ui.$('#atualizar-log-whatsapp').addEventListener('click', function () {
+      carregaLogWhatsapp(1);
+    });
+    carregaLogWhatsapp(1);
+  }
+
   // ================================================================ AGENTES ONLINE
   // Presença dos agentes (sinal enviado a cada minuto pelo navegador de cada um).
   // Atualiza sozinha enquanto a seção está aberta.
@@ -3507,6 +3938,12 @@
       titulo: 'E-mail',
       descricao: 'Envio de avisos e abertura de chamados por e-mail.',
       carrega: secaoEmail,
+    },
+    whatsapp: {
+      grupo: 'WhatsApp',
+      titulo: 'WhatsApp',
+      descricao: 'Atendimento de chamados pelo WhatsApp (API oficial da Meta).',
+      carrega: secaoWhatsapp,
     },
     pesquisa: {
       grupo: 'Atendimento',

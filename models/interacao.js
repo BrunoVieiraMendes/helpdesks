@@ -37,6 +37,8 @@ const InteracaoSchema = new Schema(
       trim: true,
       maxlength: [20000, 'Mensagem muito longa'],
     },
+    // mensagem que chegou por outro canal (ex.: 'whatsapp'); vazio = pelo sistema
+    canal: { type: String, enum: ['email', 'whatsapp'], default: undefined },
     evento: {
       type: EventoSchema,
       default: undefined, // só existe em interações do tipo 'sistema'

@@ -10,6 +10,9 @@ var Icones = (function () {
     campos:
       '<path d="M14.5 6.5a4 4 0 0 0 5 5l-9 9a2.1 2.1 0 0 1-3-3l9-9a4 4 0 0 1-2-2z"/><path d="m17 4 3 3"/>',
     email: '<rect x="3" y="5" width="18" height="14" rx="1.5"/><path d="m3.5 6 8.5 7 8.5-7"/>',
+    // balão de conversa com telefone (canal WhatsApp)
+    whatsapp:
+      '<path d="M4.5 19.5 5.6 16A8.5 8.5 0 1 1 8.4 18.6z"/><path d="M9.2 8.6c.2-.5.7-.6 1-.4l.8 1.4c.1.3 0 .6-.2.8l-.5.5c.4 1 1.3 1.9 2.4 2.4l.5-.5c.2-.2.5-.3.8-.2l1.4.8c.3.2.2.7-.1 1-.8.8-2 .9-3 .4a8 8 0 0 1-3.5-3.5c-.4-1-.3-2.1.4-3.2z"/>',
     acordos:
       '<path d="M6.5 3h11M6.5 21h11M7.5 3c0 5 9 5 9 9s-9 4-9 9M16.5 3c0 5-9 5-9 9s9 4 9 9"/>',
   };

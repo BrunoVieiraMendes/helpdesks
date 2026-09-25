@@ -26,6 +26,8 @@ const NotificacaoSchema = require('./notificacao');
 const ConfiguracaoEmailSchema = require('./configuracao-email');
 const EmailRecebidoSchema = require('./email-recebido');
 const MarcaSchema = require('./marca');
+const ConfiguracaoWhatsappSchema = require('./configuracao-whatsapp');
+const MensagemWhatsappSchema = require('./mensagem-whatsapp');
 const { codigoSequencial, preencheCodigos } = require('./plugins/codigo');
 
 // cadastros com "Id" numérico nas listas do painel (antes de compilar os models)
@@ -75,6 +77,16 @@ const ConfiguracaoEmail = mongoose.model(
 );
 const EmailRecebido = mongoose.model('EmailRecebido', EmailRecebidoSchema, 'emailsrecebidos');
 const Marca = mongoose.model('Marca', MarcaSchema, 'marcas');
+const ConfiguracaoWhatsapp = mongoose.model(
+  'ConfiguracaoWhatsapp',
+  ConfiguracaoWhatsappSchema,
+  'configuracoesdewhatsapp',
+);
+const MensagemWhatsapp = mongoose.model(
+  'MensagemWhatsapp',
+  MensagemWhatsappSchema,
+  'mensagenswhatsapp',
+);
 
 // nomes usados pelos scripts de índices e pelo seed
 const NOMES_DOS_MODELS = [
@@ -101,6 +113,8 @@ const NOMES_DOS_MODELS = [
   'ConfiguracaoEmail',
   'EmailRecebido',
   'Marca',
+  'ConfiguracaoWhatsapp',
+  'MensagemWhatsapp',
 ];
 
 /**
@@ -147,4 +161,6 @@ module.exports = {
   ConfiguracaoEmail,
   EmailRecebido,
   Marca,
+  ConfiguracaoWhatsapp,
+  MensagemWhatsapp,
 };

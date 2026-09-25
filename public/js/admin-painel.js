@@ -72,6 +72,22 @@
       ],
     },
     {
+      nome: 'WhatsApp',
+      icone: 'whatsapp',
+      itens: [
+        {
+          nome: 'Conta do WhatsApp',
+          aba: 'whatsapp',
+          termos: 'meta api oficial webhook token número zap mensagem abrir chamado',
+        },
+        {
+          nome: 'Mensagens do WhatsApp',
+          aba: 'whatsapp',
+          termos: 'log conversas enviadas recebidas zap',
+        },
+      ],
+    },
+    {
       nome: 'Atendimento',
       icone: 'acordos',
       itens: [

@@ -9,7 +9,8 @@ const { enfileira } = require('../workers/filas');
 
 const POPULA_AUTOR = { path: 'autor', select: 'nome papel' };
 // eventos de sistema que o cliente não vê
-const CAMPOS_SO_DA_EQUIPE = ['tags', 'campoAdicional'];
+// (whatsapp = avisos de entrega pelo WhatsApp, só interessam à equipe)
+const CAMPOS_SO_DA_EQUIPE = ['tags', 'campoAdicional', 'whatsapp'];
 
 /**
  * Timeline do chamado em ordem cronológica. Cliente não recebe notas internas
@@ -77,8 +78,9 @@ const mudaStatusAutomaticamente = async (chamadoId, dados, usuario) => {
  * @param {any} chamado
  * @param {{ mensagem?: string, tipo?: string }} dados
  * @param {import('./permissoes').UsuarioLogado} usuario
+ * @param {{ canal?: 'email' | 'whatsapp' }} [opcoes]  canal por onde a mensagem chegou
  */
-const adicionaInteracao = async (chamado, dados, usuario) => {
+const adicionaInteracao = async (chamado, dados, usuario, { canal } = {}) => {
   if (chamado.status === STATUS.FECHADO) {
     throw createError(
       409,
@@ -96,6 +98,7 @@ const adicionaInteracao = async (chamado, dados, usuario) => {
     autor: usuario._id,
     tipo,
     mensagem: dados.mensagem,
+    ...(canal && { canal }),
   });
 
   const agora = new Date();

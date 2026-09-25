@@ -61,6 +61,17 @@ const UsuarioSchema = new Schema(
       ref: 'Classificacao',
       default: null,
     },
+    // WhatsApp do cliente: só dígitos, com DDI e DDD (ex.: 5511987654321).
+    // Mensagens desse número entram nos chamados dele.
+    whatsapp: {
+      type: String,
+      trim: true,
+      match: [/^\d{10,15}$/, 'WhatsApp inválido: use DDI + DDD + número'],
+      default: undefined,
+    },
+    // última mensagem que a pessoa mandou pelo WhatsApp: a Meta só aceita texto livre
+    // até 24h depois dela (a "janela de atendimento")
+    whatsappMensagemEm: { type: Date, default: undefined, select: false },
     // presença (agentes/admins): o navegador avisa a cada minuto enquanto o sistema está aberto.
     // vistoEm = último sinal; ativoEm = último sinal com a pessoa mexendo no sistema.
     // Fora das consultas por padrão: só a tela "Agentes online" lê.
@@ -84,6 +95,8 @@ UsuarioSchema.index({ equipes: 1 });
 UsuarioSchema.index({ empresa: 1 });
 // pessoas de um perfil de acesso (trava de remoção e contagem na tela)
 UsuarioSchema.index({ perfil: 1 });
+// um número de WhatsApp pertence a uma pessoa só
+UsuarioSchema.index({ whatsapp: 1 }, { unique: true, sparse: true });
 
 // nunca expõe o hash, mesmo se ele tiver sido selecionado explicitamente
 UsuarioSchema.set('toJSON', {

@@ -5,8 +5,32 @@ const { Usuario, Equipe, Chamado, Interacao, Perfil, Cargo, Classificacao } = re
 const { PAPEIS } = require('../constants');
 const { erroDeValidacao, listaDaQuery, escapaRegex } = require('../utils');
 const { idValido, validaEmpresa } = require('./valida-referencias');
+const { normalizaNumero, variantesDoNumero } = require('./whatsapp-numero');
 
 const SENHA_MINIMA = 6;
+
+/**
+ * WhatsApp digitado -> só dígitos com DDI (ou undefined para limpar), sem repetir o número
+ * de outra pessoa (inclusive a forma sem o nono dígito).
+ */
+const validaWhatsapp = async (valor, idAtual = null) => {
+  let numero;
+  try {
+    numero = normalizaNumero(valor);
+  } catch (e) {
+    throw erroDeValidacao({ whatsapp: e.message });
+  }
+  if (!numero) return undefined;
+  const dono = await Usuario.findOne({
+    whatsapp: { $in: variantesDoNumero(numero) },
+    ...(idAtual && { _id: { $ne: idAtual } }),
+  })
+    .select('nome')
+    .lean();
+  if (dono)
+    throw erroDeValidacao({ whatsapp: `Este WhatsApp já está no cadastro de ${dono.nome}` });
+  return numero;
+};
 const POPULA_EQUIPES = [
   { path: 'equipes', select: 'nome ativa' },
   { path: 'empresa', select: 'nome ativa' },
@@ -101,6 +125,8 @@ const listaUsuarios = async (query = {}) => {
   if (busca) {
     const regex = { $regex: escapaRegex(busca), $options: 'i' };
     filtro.$or = [{ nome: regex }, { email: regex }];
+    const digitos = busca.replace(/\D/g, '');
+    if (digitos.length >= 4) filtro.$or.push({ whatsapp: { $regex: digitos } });
   }
 
   return Usuario.find(filtro)
@@ -125,9 +151,11 @@ const criaUsuario = async ({
   perfil = null,
   cargo = null,
   classificacao = null,
+  whatsapp = null,
 }) => {
   validaSenha(senha);
   validaPapel(papel);
+  const numeroWhatsapp = await validaWhatsapp(whatsapp);
 
   const usuario = await Usuario.create({
     nome,
@@ -138,6 +166,7 @@ const criaUsuario = async ({
     perfil: await validaPerfil(perfil, papel, null),
     cargo: await validaRelacao(Cargo, 'cargo', cargo, null),
     classificacao: await validaRelacao(Classificacao, 'classificacao', classificacao, null),
+    ...(numeroWhatsapp && { whatsapp: numeroWhatsapp }),
     senha: await bcrypt.hash(senha, 10),
   });
 
@@ -191,6 +220,9 @@ const atualizaUsuario = async (id, dados, quemAltera) => {
       dados.classificacao,
       usuario.classificacao,
     );
+  }
+  if (dados.whatsapp !== undefined) {
+    usuario.whatsapp = await validaWhatsapp(dados.whatsapp, usuario._id);
   }
   if (dados.ativo !== undefined) usuario.ativo = Boolean(dados.ativo);
   if (dados.senha !== undefined && dados.senha !== '') {

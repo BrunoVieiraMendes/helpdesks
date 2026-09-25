@@ -119,7 +119,7 @@ const ChamadoSchema = new Schema(
       default: null,
     },
     // por onde o chamado chegou
-    origem: { type: String, enum: ['sistema', 'email'], default: 'sistema' },
+    origem: { type: String, enum: ['sistema', 'email', 'whatsapp'], default: 'sistema' },
     // valores dos campos adicionais: _id do campo -> valor (texto, número, data AAAA-MM-DD, booleano ou _id da pessoa)
     camposAdicionais: {
       type: Map,

@@ -5250,3 +5250,64 @@ a.botao-novo svg,
     align-items: flex-start;
   }
 }
+
+/* ---------------------------------------------------------------- whatsapp (configurações) */
+.passos-whatsapp {
+  margin: 0 0 16px;
+  padding-left: 22px;
+  color: var(--cor-texto);
+  line-height: 1.6;
+}
+.passos-whatsapp li + li {
+  margin-top: 4px;
+}
+.linha-copiavel {
+  display: flex;
+  gap: 8px;
+}
+.linha-copiavel input {
+  flex: 1;
+  min-width: 0;
+  background: var(--cor-fundo);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 13px;
+}
+.texto-janela {
+  margin: 14px 0;
+  line-height: 1.55;
+}
+.acoes-log-whatsapp {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.acoes-log-whatsapp select {
+  height: 32px;
+}
+.direcao-whatsapp {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.direcao-whatsapp.entrada {
+  background: var(--pr-normal-bg);
+  color: var(--pr-normal);
+}
+.direcao-whatsapp.saida {
+  background: var(--cor-primaria-clara);
+  color: var(--cor-primaria);
+}
+/* chamado: mensagem que chegou por WhatsApp/e-mail */
+.canal-acao {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pr-baixa);
+}
+@media (max-width: 640px) {
+  .linha-copiavel {
+    flex-wrap: wrap;
+  }
+}

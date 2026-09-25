@@ -85,5 +85,10 @@ module.exports = {
   listaEmailsRecebidos: require('./email-entrada').listaEmailsRecebidos,
   ...require('./email-imap'),
   ...require('./marca'),
+  // WhatsApp (API oficial da Meta)
+  configWhatsappParaTela: require('./whatsapp-config').configWhatsappParaTela,
+  atualizaConfigWhatsapp: require('./whatsapp-config').atualizaConfigWhatsapp,
+  renovaTokenDeVerificacao: require('./whatsapp-config').renovaTokenDeVerificacao,
+  ...require('./whatsapp-entrada'),
   fechaResolvidos: require('./fecha-resolvidos'),
 };

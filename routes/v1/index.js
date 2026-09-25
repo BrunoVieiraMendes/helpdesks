@@ -15,6 +15,7 @@ const inicioRouter = require('./inicio');
 const relatoriosRouter = require('./relatorios');
 const notificacoesRouter = require('./notificacoes');
 const presencaRouter = require('./presenca');
+const whatsappRouter = require('./whatsapp');
 const rotasDeCadastro = require('./cadastros');
 const {
   empresas,
@@ -38,6 +39,8 @@ const router = express.Router();
 // públicas
 router.use('/status', statusRouter);
 router.use('/auth', authRouter);
+// webhook do WhatsApp: chamado pela Meta (autenticado pela assinatura, não por login)
+router.use('/whatsapp', whatsappRouter);
 router.use('/docs', swaggerUI.serve);
 router.get('/docs', swaggerUI.setup(swaggerConfig));
 router.get('/docs.json', (_req, res) => res.json(swaggerConfig));

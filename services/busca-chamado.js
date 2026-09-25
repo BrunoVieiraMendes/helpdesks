@@ -7,7 +7,7 @@ const { nomesDasPessoasDosCampos } = require('./campos-adicionais');
 
 // campos populados em listagens e no detalhe
 const POPULA_CHAMADO = [
-  { path: 'solicitante', select: 'nome email' },
+  { path: 'solicitante', select: 'nome email whatsapp' },
   { path: 'responsavel', select: 'nome email' },
   { path: 'categoria', select: 'nome' },
   { path: 'servico', select: 'nome cor' },

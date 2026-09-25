@@ -184,6 +184,12 @@
     );
   }
 
+  // "5511987654321" -> "+55 11 98765-4321"
+  function formataWhatsapp(n) {
+    var br = /^55(\d{2})(\d{4,5})(\d{4})$/.exec(n || '');
+    return br ? '+55 ' + br[1] + ' ' + br[2] + '-' + br[3] : '+' + n;
+  }
+
   // ---------------------------------------------------------------- painel esquerdo
   function cartaoSolicitante(c) {
     return (
@@ -191,9 +197,14 @@
       Ui.esc(c.status) +
       '" aria-hidden="true"></span><div><strong>' +
       Ui.esc(c.solicitante.nome) +
-      '</strong><span>' +
-      Ui.esc(c.solicitante.email) +
-      '</span>' +
+      '</strong>' +
+      // clientes cadastrados pelo WhatsApp têm um e-mail de marcação (.invalid): não mostra
+      (/\.invalid$/.test(c.solicitante.email || '')
+        ? ''
+        : '<span>' + Ui.esc(c.solicitante.email) + '</span>') +
+      (c.solicitante.whatsapp
+        ? '<span>WhatsApp ' + Ui.esc(formataWhatsapp(c.solicitante.whatsapp)) + '</span>'
+        : '') +
       (c.empresa ? '<span>' + Ui.esc(c.empresa.nome) + '</span>' : '') +
       '</div></div>'
     );
@@ -791,6 +802,8 @@
     });
   }
 
+  var CANAIS = { email: 'e-mail', whatsapp: 'WhatsApp' };
+
   function cartaoAcao(a) {
     var i = a.item;
     if (i.tipo === 'sistema') {
@@ -817,7 +830,9 @@
       Ui.relativo(i.createdAt) +
       '">' +
       Ui.data(i.createdAt) +
-      '</span><em>' +
+      '</span>' +
+      (i.canal ? '<span class="canal-acao">via ' + (CANAIS[i.canal] || i.canal) + '</span>' : '') +
+      '<em>' +
       (interna ? 'Ação interna' : 'Ação pública') +
       '</em><span class="numero-acao">' +
       a.numero +
@@ -892,7 +907,7 @@
       '<section class="principal-chamado">' +
       tituloDoChamado(c) +
       '<p class="subtitulo-chamado">Ticket aberto via ' +
-      (c.origem === 'email' ? 'e-mail ' : 'sistema ') +
+      ({ email: 'e-mail ', whatsapp: 'WhatsApp ' }[c.origem] || 'sistema ') +
       (c.solicitante ? 'pelo cliente <strong>' + Ui.esc(c.solicitante.nome) + '</strong> ' : '') +
       'em ' +
       Ui.data(c.createdAt) +

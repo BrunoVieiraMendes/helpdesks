@@ -4,6 +4,7 @@ const { ehEquipe } = require('./permissoes');
 const { POPULA_CHAMADO } = require('./busca-chamado');
 const { obtemConfigEmail } = require('./email-config');
 const enviaEmail = require('./envia-email');
+const { whatsappNovoChamado, whatsappNovaResposta } = require('./whatsapp-saida');
 const { logger } = require('../utils');
 
 /**
@@ -85,11 +86,29 @@ const PROCESSADORES = {
   'nova-resposta': notificaNovaResposta,
 };
 
-/** @param {{ tipo: string } & Record<string, any>} dados */
+// mesma situação, pelo WhatsApp (só chamados abertos pelo WhatsApp)
+const PROCESSADORES_WHATSAPP = {
+  'novo-chamado': whatsappNovoChamado,
+  'nova-resposta': whatsappNovaResposta,
+};
+
+/**
+ * E-mail e WhatsApp saem de forma independente: uma falha no e-mail não impede o WhatsApp.
+ * Só o erro do e-mail volta para a fila (nova tentativa); o WhatsApp registra as próprias falhas
+ * no chamado e não é reenviado, para o cliente não receber a mesma mensagem duas vezes.
+ * @param {{ tipo: string } & Record<string, any>} dados
+ */
 const processaNotificacao = async (dados) => {
   const processador = PROCESSADORES[dados.tipo];
   if (!processador) throw new Error(`Tipo de notificação desconhecido: ${dados.tipo}`);
-  await processador(dados);
+  const [email, whatsapp] = await Promise.allSettled([
+    processador(dados),
+    PROCESSADORES_WHATSAPP[dados.tipo](dados),
+  ]);
+  if (whatsapp.status === 'rejected') {
+    logger.error(`Falha no aviso por WhatsApp (${dados.tipo}): ${whatsapp.reason?.message}`);
+  }
+  if (email.status === 'rejected') throw email.reason;
 };
 
 module.exports = processaNotificacao;

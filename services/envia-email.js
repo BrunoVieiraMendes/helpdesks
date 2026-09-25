@@ -21,6 +21,8 @@ const renderiza = (template, arquivo, dados) =>
  * @returns {Promise<boolean>} false se o envio de e-mail estiver desligado
  */
 const enviaEmail = async ({ para, assunto, template, dados, chamado, respondivel = false }) => {
+  // endereços de marcação (ex.: clientes cadastrados pelo WhatsApp) não recebem e-mail
+  if (/\.invalid$/i.test(String(para || ''))) return false;
   const envio = await transporteDeEnvio();
   if (!envio) {
     logger.debug(`E-mail "${template}" não enviado: nenhuma conta de envio configurada`);

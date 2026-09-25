@@ -101,6 +101,41 @@ Em **Configurações > E-mail** (só admin):
 - `LEITURA_DE_EMAIL=false` desliga a leitura automática.
 - Anexos ainda não são importados. O chamado registra quantos havia.
 
+## WhatsApp
+
+Atendimento pela **API oficial do WhatsApp (Meta, WhatsApp Cloud API)**, sem risco de bloqueio do número. Configure em **Configurações > WhatsApp** (só admin). A tela traz o passo a passo.
+
+**O que é preciso na Meta**
+
+1. Um app do tipo _Empresa_ em developers.facebook.com, com o produto WhatsApp.
+2. Um número dedicado. Ele não pode estar ativo no aplicativo do celular.
+3. Os dados que a tela pede:
+   - a identificação do número de telefone;
+   - um **token permanente**, gerado por um usuário do sistema com a permissão `whatsapp_business_messaging`. O token temporário do painel vale só 24 horas;
+   - a **chave secreta do app**.
+4. O webhook cadastrado com a URL e o token de verificação que a tela mostra, com o campo `messages` assinado.
+   - Endereço: `https://SEU-DOMINIO/v1/whatsapp/webhook`. A Meta só entrega avisos para um endereço público com HTTPS. Para testar localmente, use um túnel (ngrok, por exemplo).
+
+**Como funciona**
+
+- **Cliente escreve.** A mensagem abre um chamado no **serviço padrão**, com o título tirado da primeira linha, e o chamado mostra "Ticket aberto via WhatsApp". O cliente recebe na hora o número do chamado.
+- **Cliente escreve de novo.** Enquanto o chamado não for fechado, as novas mensagens entram nele, marcadas "via WhatsApp". Se o chamado estava Resolvido ou Pendente, volta para Em Atendimento. Depois de fechado, uma nova mensagem abre outro chamado.
+- **Número sem cadastro.** Vira cliente automaticamente, com o nome do perfil do WhatsApp. Isso pode ser desligado; nesse caso a mensagem é ignorada.
+- **Número cadastrado.** Em **Pessoas**, o campo **WhatsApp** liga o número a um cliente. Pode ser digitado com DDD; o DDI 55 é colocado sozinho. No Brasil, o mesmo celular é reconhecido com ou sem o nono dígito, como a Meta às vezes envia.
+- **Resposta da equipe.** Cada resposta pública da equipe, inclusive a resposta de solução, vai para o WhatsApp do cliente. **Notas internas nunca vão.**
+- **Regra das 24 horas da Meta.** A empresa só pode mandar mensagem livre até 24 horas depois da última mensagem do cliente. Fora desse prazo:
+  - a resposta fica guardada e é entregue assim que o cliente escrever de novo;
+  - se houver um **modelo aprovado** configurado (com a variável `{{1}}`, que recebe o número do chamado), ele é enviado para chamar o cliente, no máximo uma vez a cada 24 horas;
+  - a equipe é avisada no histórico do chamado.
+- **Entrega.** Cada mensagem enviada é acompanhada: enviada, entregue, lida ou falhou. Uma falha, como um token vencido ou um número sem WhatsApp, é explicada em português no **log de mensagens** e aparece no histórico do chamado. O cliente não vê esse aviso.
+- **Segurança.** O webhook só aceita avisos com a assinatura `X-Hub-Signature-256` feita com a chave secreta do app. O token e a chave ficam **criptografados** no banco, como as senhas de e-mail.
+- **Mensagens repetidas.** Cada mensagem é processada uma vez só, mesmo que a Meta reenvie o aviso.
+- **Anexos.** Fotos, áudios e documentos entram no chamado como um aviso ("o cliente enviou uma imagem"), com a legenda. O arquivo não é importado.
+- **Testes.**
+  - **Testar conexão** confere o token e o número na Meta.
+  - **Simular mensagem recebida** abre um chamado como se a mensagem tivesse chegado, sem precisar da Meta.
+  - A variável `WHATSAPP_API_URL` troca o endereço da API da Meta. Serve só para testes automatizados com um servidor falso.
+
 ## Agentes online
 
 Em **Configurações > Atendimento > Agentes online** (só admin): quem está com o sistema aberto agora.
