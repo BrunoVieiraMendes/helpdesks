@@ -1,8 +1,9 @@
 Novo chamado na fila <%= chamado.equipe.nome %>
 
 #<%= chamado.numero %> · <%= chamado.titulo %>
-Solicitante: <%= chamado.solicitante.nome %>
+Cliente: <%= chamado.solicitante.nome %>
 Serviço: <%= chamado.servico ? chamado.servico.nome : '—' %>
+Urgência: <%= rotuloUrgencia %>
 
 <%= chamado.descricao %>
 

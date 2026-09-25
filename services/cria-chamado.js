@@ -38,8 +38,10 @@ const coleta = async (erros, validacao) => {
  *   (o responsável precisa ser da equipe do serviço).
  * @param {{ titulo?: string, descricao?: string, servico?: string, categoria?: string, prioridade?: string, solicitante?: string, responsavel?: string, camposAdicionais?: Record<string, any> }} dados
  * @param {import('./permissoes').UsuarioLogado} usuario
+ * @param {{ porEmail?: boolean }} [opcoes]  porEmail: aberto por e-mail (campos adicionais obrigatórios
+ *   não são exigidos, porque quem escreve o e-mail não tem como preenchê-los)
  */
-const criaChamado = async (dados, usuario) => {
+const criaChamado = async (dados, usuario, { porEmail = false } = {}) => {
   if (!ehEquipe(usuario) && !pode(usuario, 'abrirChamados')) {
     throw createError(403, 'Seu perfil de acesso não permite abrir chamados. Fale com o suporte.');
   }
@@ -56,6 +58,7 @@ const criaChamado = async (dados, usuario) => {
     solicitante: usuario._id,
     empresa: ehEquipe(usuario) ? null : (usuario.empresa ?? null),
     prioridade: PRIORIDADES.NORMAL,
+    origem: porEmail ? 'email' : 'sistema',
   });
 
   if (ehEquipe(usuario)) {
@@ -86,7 +89,7 @@ const criaChamado = async (dados, usuario) => {
       dados.camposAdicionais,
       { servico: servico?._id, categoria: categoria?._id },
       usuario,
-      { exigeObrigatorios: true },
+      { exigeObrigatorios: !porEmail },
     ),
   );
   const preenchidos = Object.entries(campos || {}).filter(([, valor]) => valor !== null);

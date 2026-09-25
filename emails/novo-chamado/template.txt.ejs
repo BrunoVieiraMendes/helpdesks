@@ -1,6 +1,11 @@
-Olá, <%= chamado.solicitante.nome %>!
+<% if (podeResponder) { %><%= marcador %>
+
+<% } %>Olá, <%= chamado.solicitante.nome %>!
 
 Recebemos o seu chamado #<%= chamado.numero %>: <%= chamado.titulo %>
-Ele já está na fila de atendimento.
+Ele foi encaminhado para a equipe <%= chamado.equipe ? chamado.equipe.nome : 'de atendimento' %>.
 
 Acompanhe em: <%= urlDoHelpdesk %>/chamados/<%= chamado.numero %>
+<% if (podeResponder) { %>
+Você pode responder este e-mail diretamente: sua mensagem entra no chamado.
+<% } %>

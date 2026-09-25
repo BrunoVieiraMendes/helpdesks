@@ -1,4 +1,4 @@
-// Barra de filtros compartilhada entre a Lista e o Kanban.
+// Barra de filtros compartilhada entre a Lista e o Quadro de chamados.
 // Mantém os filtros na URL (?status=novo,pendente&responsavel=eu...) para
 // que a visão possa ser recarregada, favoritada e compartilhada.
 /* exported Filtros */

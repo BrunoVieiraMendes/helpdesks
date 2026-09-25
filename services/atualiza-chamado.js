@@ -27,6 +27,14 @@ const { validaCamposAdicionais, registraCamposAlterados } = require('./campos-ad
 const { detalhaChamado } = require('./busca-chamado');
 const { notificaEquipeDoChamado } = require('./notificacoes-do-sistema');
 
+// require tardio: interacoes também usa atualizaChamado (ciclo de módulos)
+const registraRespostaDaEquipe = (...args) =>
+  require('./interacoes').registraRespostaDaEquipe(...args);
+
+/** Resolver, ou fechar sem ter resolvido antes, só com uma resposta ao cliente. */
+const exigeResposta = (de, para) =>
+  para === STATUS.RESOLVIDO || (para === STATUS.FECHADO && de !== STATUS.RESOLVIDO);
+
 // campo alterado -> permissão do perfil de acesso exigida
 const PERMISSAO_POR_CAMPO = {
   prioridade: ['alterarPrioridade', 'alterar a prioridade'],
@@ -184,6 +192,19 @@ const atualizaChamado = async (chamado, dados, usuario, { automatico = false } =
   }
 
   const mudancas = await calculaMudancas(chamado, dados, { automatico });
+
+  // resolver (ou fechar um chamado ainda não resolvido) exige responder o cliente na mesma ação
+  const resposta = String(dados.resposta ?? '').trim();
+  const precisaResponder =
+    !automatico && mudancas.status && exigeResposta(chamado.status, mudancas.status);
+  if (precisaResponder && !resposta) {
+    throw erroDeValidacao({
+      resposta: `Escreva a resposta ao cliente para ${
+        mudancas.status === STATUS.RESOLVIDO ? 'resolver' : 'fechar'
+      } o chamado`,
+    });
+  }
+  if (resposta.length > 20000) throw erroDeValidacao({ resposta: 'Resposta muito longa' });
   const campos =
     'camposAdicionais' in dados
       ? await alteracoesDeCampos(chamado, dados.camposAdicionais, mudancas, usuario)
@@ -231,6 +252,7 @@ const atualizaChamado = async (chamado, dados, usuario, { automatico = false } =
   if (!atualizado) {
     throw createError(409, 'O chamado foi alterado por outra pessoa. Recarregue e tente novamente');
   }
+  if (precisaResponder) await registraRespostaDaEquipe(chamado._id, resposta, usuario);
 
   await registraEventos(
     chamado._id,

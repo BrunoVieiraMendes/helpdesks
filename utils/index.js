@@ -28,4 +28,5 @@ module.exports = {
   listaDaQuery,
   escapaRegex,
   dataIsoValida,
+  ...require('./cifra'),
 };

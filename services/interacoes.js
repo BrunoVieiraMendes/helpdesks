@@ -123,4 +123,29 @@ const adicionaInteracao = async (chamado, dados, usuario) => {
   return Interacao.findById(interacao._id).select('-__v').populate(POPULA_AUTOR).lean();
 };
 
-module.exports = { listaInteracoes, adicionaInteracao };
+/**
+ * Resposta pública da equipe enviada junto com uma mudança de status (ex.: resolver o chamado).
+ * Conta como 1ª resposta e avisa o cliente por e-mail, mas não aplica os automatismos de
+ * status (quem chamou já decidiu o status).
+ * @param {any} chamadoId
+ * @param {string} mensagem
+ * @param {import('./permissoes').UsuarioLogado} usuario
+ */
+const registraRespostaDaEquipe = async (chamadoId, mensagem, usuario) => {
+  const agora = new Date();
+  const interacao = await Interacao.create({
+    chamado: chamadoId,
+    autor: usuario._id,
+    tipo: TIPOS_INTERACAO.PUBLICA,
+    mensagem,
+  });
+  await Chamado.updateOne({ _id: chamadoId }, { $set: { updatedAt: agora } });
+  await Chamado.updateOne(
+    { _id: chamadoId, 'sla.primeiraRespostaEm': null },
+    { $set: { 'sla.primeiraRespostaEm': agora } },
+  );
+  await enfileira('notificacoes', { tipo: 'nova-resposta', interacaoId: String(interacao._id) });
+  return interacao;
+};
+
+module.exports = { listaInteracoes, adicionaInteracao, registraRespostaDaEquipe };

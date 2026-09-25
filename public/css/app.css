@@ -4489,3 +4489,397 @@ a.botao-novo svg,
 #modal-excluir[hidden] {
   display: none;
 }
+
+/* ---------------------------------------------------------------- busca rápida (barra do topo) */
+.busca-topo {
+  position: relative;
+  align-self: center;
+  flex: 0 1 340px;
+  min-width: 180px;
+}
+.campo-busca-topo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--cor-borda);
+  border-radius: 10px;
+  background: var(--cor-fundo);
+  color: var(--cor-texto-suave);
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    background 0.15s;
+}
+.campo-busca-topo:focus-within {
+  border-color: var(--cor-marca);
+  background: var(--cor-superficie);
+  box-shadow: var(--anel-foco);
+}
+.campo-busca-topo svg {
+  flex-shrink: 0;
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.campo-busca-topo input {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  font-size: 14px;
+}
+.campo-busca-topo input:focus {
+  box-shadow: none;
+}
+.campo-busca-topo kbd {
+  padding: 1px 6px;
+  border: 1px solid var(--cor-borda-forte);
+  border-radius: 5px;
+  background: var(--cor-superficie);
+  color: var(--cor-texto-suave);
+  font: inherit;
+  font-size: 11px;
+}
+.painel-busca-topo {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  z-index: 60;
+  min-width: 360px;
+  max-height: 420px;
+  padding: 6px;
+  overflow-y: auto;
+  border: 1px solid var(--cor-borda);
+  border-radius: 12px;
+  background: var(--cor-superficie);
+  box-shadow: var(--sombra-alta);
+}
+.painel-busca-topo[hidden] {
+  display: none;
+}
+.opcao-busca {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  color: var(--cor-texto);
+  font-size: 13px;
+}
+.opcao-busca:hover,
+.opcao-busca.ativo {
+  background: var(--cor-primaria-clara);
+  text-decoration: none;
+}
+.numero-busca {
+  flex-shrink: 0;
+  min-width: 46px;
+  color: var(--cor-primaria);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.texto-busca {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.texto-busca strong,
+.texto-busca span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.texto-busca span {
+  color: var(--cor-texto-suave);
+  font-size: 12px;
+}
+.icone-busca {
+  display: grid;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--cor-primaria-clara);
+  color: var(--cor-primaria);
+  font-weight: 700;
+}
+.icone-busca svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+.rodape-busca {
+  margin-top: 4px;
+  border-top: 1px solid var(--cor-borda);
+  border-radius: 0 0 8px 8px;
+  color: var(--cor-primaria);
+  font-weight: 600;
+}
+.vazio-busca {
+  margin: 0;
+  padding: 12px;
+  color: var(--cor-texto-suave);
+  font-size: 13px;
+  text-align: center;
+}
+@media (max-width: 760px) {
+  .busca-topo {
+    flex-basis: 44px;
+    min-width: 44px;
+  }
+  .campo-busca-topo kbd {
+    display: none;
+  }
+  .busca-topo:focus-within {
+    position: absolute;
+    right: 8px;
+    left: 8px;
+    z-index: 70;
+  }
+  .painel-busca-topo {
+    min-width: 0;
+  }
+}
+
+/* ---------------------------------------------------------------- configurações de e-mail */
+.grade-email {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  align-items: start;
+  gap: 20px;
+}
+.formulario-email {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.bloco-email {
+  padding: 20px 22px;
+}
+.bloco-email h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+  font-size: 16px;
+}
+.cabeca-bloco-email {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin-bottom: 14px;
+}
+.cabeca-bloco-email > p {
+  flex-basis: 100%;
+  margin: 0;
+}
+.linha-provedor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.linha-provedor select {
+  width: auto;
+  min-width: 240px;
+}
+.grade-campos-email {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 14px;
+  margin-top: 14px;
+}
+.grade-campos-email .largo {
+  grid-column: span 2;
+}
+.campo-check-email {
+  justify-content: flex-end;
+}
+.selo-email {
+  padding: 2px 9px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.selo-email.ok {
+  background: #e3f5ea;
+  color: #17683a;
+}
+.selo-email.off {
+  background: #eceff4;
+  color: var(--cor-texto-suave);
+}
+.linha-aviso-email {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 0;
+  cursor: pointer;
+}
+.linha-aviso-email > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.linha-aviso-email .suave {
+  font-size: 12px;
+}
+.lista-avisos-email {
+  display: flex;
+  flex-direction: column;
+}
+.interruptor-email {
+  position: relative;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.interruptor-email input {
+  position: absolute;
+  width: 1px;
+  min-height: 0;
+  opacity: 0;
+}
+.trilho-email {
+  position: relative;
+  display: block;
+  width: 38px;
+  height: 22px;
+  border-radius: 99px;
+  background: #c3c9d3;
+  transition: background 0.15s;
+}
+.trilho-email::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  content: '';
+  transition: transform 0.15s;
+}
+.interruptor-email input:checked + .trilho-email {
+  background: var(--cor-primaria);
+}
+.interruptor-email input:checked + .trilho-email::after {
+  transform: translateX(16px);
+}
+.interruptor-email input:focus-visible + .trilho-email {
+  box-shadow: var(--anel-foco);
+}
+.rodape-form-email {
+  position: sticky;
+  bottom: 0;
+  margin: 0;
+  padding: 12px 0;
+  background: var(--cor-fundo);
+}
+.lateral-email {
+  position: sticky;
+  top: calc(var(--altura-topo) + 16px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.situacao-email {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0 16px;
+  padding: 0;
+  list-style: none;
+}
+.situacao-email li {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.situacao-email span {
+  color: var(--cor-texto-suave);
+  font-size: 12px;
+}
+.botoes-email {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+#simular-email {
+  min-height: 170px;
+  margin: 10px 0;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+}
+.resultado-simulacao {
+  margin-top: 10px;
+  font-size: 13px;
+}
+.chip-resultado {
+  padding: 2px 9px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.chip-resultado.ok {
+  background: #e3f5ea;
+  color: #17683a;
+}
+.chip-resultado.neutro {
+  background: #eceff4;
+  color: var(--cor-texto-suave);
+}
+.chip-resultado.falha {
+  background: #fdecee;
+  color: var(--cor-perigo);
+}
+.log-email-cartao {
+  margin-top: 20px;
+}
+.tabela-log-email tbody tr {
+  cursor: default;
+}
+.data-log {
+  white-space: nowrap;
+}
+.assunto-log {
+  max-width: 280px;
+}
+.detalhe-log-email {
+  max-width: 320px;
+  font-size: 12px;
+}
+@media (max-width: 1100px) {
+  .grade-email {
+    grid-template-columns: 1fr;
+  }
+  .lateral-email {
+    position: static;
+  }
+}
+@media (max-width: 700px) {
+  .grade-campos-email {
+    grid-template-columns: 1fr;
+  }
+  .grade-campos-email .largo {
+    grid-column: auto;
+  }
+}

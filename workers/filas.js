@@ -41,17 +41,40 @@ const desativaFilas = async () => {
   filas.clear();
 };
 
+// sem Redis, estes jobs rodam em segundo plano no próprio processo (sem novas tentativas)
+const PROCESSADORES_DIRETOS = {
+  // require tardio: services -> workers/filas -> services
+  notificacoes: (dados) => require('../services/notificacoes')(dados),
+};
+
+const processaDireto = (nome, dados) => {
+  const processa = PROCESSADORES_DIRETOS[nome];
+  if (!processa) return;
+  setImmediate(() => {
+    processa(dados).catch((e) =>
+      logger.error(`Falha no job "${nome}" (${dados.tipo || ''}): ${e.message}`),
+    );
+  });
+};
+
 /**
  * Enfileira um job sem bloquear nem derrubar a requisição: o chamado/resposta
- * já foi salvo e a notificação é secundária.
+ * já foi salvo e a notificação é secundária. Sem Redis (ou com ele fora do ar),
+ * as notificações por e-mail são enviadas direto, em segundo plano.
  * @param {string} nome
  * @param {Record<string, any>} dados
  */
 const enfileira = (nome, dados) => {
-  if (!workersAtivos()) return;
+  if (!workersAtivos()) {
+    processaDireto(nome, dados);
+    return;
+  }
   obtemFila(nome)
     .add(dados, { attempts: 3, backoff: 5000, removeOnComplete: true })
-    .catch((e) => logger.error(`Falha ao enfileirar job em "${nome}": ${e.message}`));
+    .catch((e) => {
+      logger.error(`Falha ao enfileirar job em "${nome}": ${e.message}. Enviando direto.`);
+      processaDireto(nome, dados);
+    });
 };
 
 module.exports = { obtemFila, enfileira, workersAtivos, desativaFilas };

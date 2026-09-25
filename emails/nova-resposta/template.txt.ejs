@@ -1,7 +1,12 @@
-Olá, <%= destinatario.nome %>!
+<% if (podeResponder) { %><%= marcador %>
 
-<%= interacao.autor.nome %> respondeu o chamado #<%= chamado.numero %> (<%= chamado.titulo %>):
+<% } %>Olá, <%= destinatario.nome %>!
+
+<%= interacao.autor ? interacao.autor.nome : 'A equipe' %> respondeu o chamado #<%= chamado.numero %> (<%= chamado.titulo %>):
 
 <%= interacao.mensagem %>
 
 Ver chamado: <%= urlDoHelpdesk %>/chamados/<%= chamado.numero %>
+<% if (podeResponder) { %>
+Você pode responder este e-mail diretamente: sua mensagem entra no chamado.
+<% } %>

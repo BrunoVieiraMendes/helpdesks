@@ -60,6 +60,18 @@
       ],
     },
     {
+      nome: 'E-mail',
+      icone: 'email',
+      itens: [
+        {
+          nome: 'Contas e avisos por e-mail',
+          aba: 'email',
+          termos: 'smtp imap caixa de entrada notificação abrir chamado por email',
+        },
+        { nome: 'E-mails recebidos', aba: 'email', termos: 'log caixa de entrada' },
+      ],
+    },
+    {
       nome: 'Atendimento',
       icone: 'acordos',
       itens: [

@@ -1,25 +1,32 @@
 const { Chamado, Interacao, Usuario } = require('../models');
-const { PAPEIS_DA_EQUIPE } = require('../constants');
+const { PAPEIS_DA_EQUIPE, ROTULOS_PRIORIDADE } = require('../constants');
 const { ehEquipe } = require('./permissoes');
 const { POPULA_CHAMADO } = require('./busca-chamado');
+const { obtemConfigEmail } = require('./email-config');
 const enviaEmail = require('./envia-email');
 const { logger } = require('../utils');
 
 /**
- * Chamado aberto: confirmação para o solicitante e aviso para os agentes da equipe.
+ * Chamado aberto: confirmação para o cliente e aviso para cada agente da equipe
+ * (um e-mail por pessoa, sem expor os endereços uns dos outros).
  */
 const notificaNovoChamado = async ({ chamadoId }) => {
+  const { avisos } = await obtemConfigEmail();
   const chamado = await Chamado.findById(chamadoId).populate(POPULA_CHAMADO).lean();
   if (!chamado) return;
 
-  await enviaEmail({
-    para: chamado.solicitante.email,
-    assunto: `[#${chamado.numero}] Recebemos o seu chamado`,
-    template: 'novo-chamado',
-    dados: { chamado },
-  });
+  if (avisos.confirmacaoCliente && chamado.solicitante?.email) {
+    await enviaEmail({
+      para: chamado.solicitante.email,
+      assunto: `[#${chamado.numero}] Recebemos o seu chamado: ${chamado.titulo}`,
+      template: 'novo-chamado',
+      dados: { chamado },
+      chamado: chamado.numero,
+      respondivel: true,
+    });
+  }
 
-  if (!chamado.equipe) return;
+  if (!avisos.novoChamadoEquipe || !chamado.equipe) return;
   const agentes = await Usuario.find({
     equipes: chamado.equipe._id,
     ativo: true,
@@ -28,28 +35,37 @@ const notificaNovoChamado = async ({ chamadoId }) => {
     .select('nome email')
     .lean();
 
-  if (!agentes.length) return;
-  await enviaEmail({
-    para: agentes.map((a) => a.email).join(', '),
-    assunto: `[#${chamado.numero}] Novo chamado na fila ${chamado.equipe.nome}: ${chamado.titulo}`,
-    template: 'novo-chamado-equipe',
-    dados: { chamado },
-  });
+  for (const agente of agentes) {
+    try {
+      await enviaEmail({
+        para: agente.email,
+        assunto: `[#${chamado.numero}] Novo chamado na fila ${chamado.equipe.nome}: ${chamado.titulo}`,
+        template: 'novo-chamado-equipe',
+        dados: { chamado, rotuloUrgencia: ROTULOS_PRIORIDADE[chamado.prioridade] },
+        chamado: chamado.numero,
+      });
+    } catch (e) {
+      logger.error(`Falha ao avisar ${agente.email} do chamado #${chamado.numero}: ${e.message}`);
+    }
+  }
 };
 
 /**
- * Resposta pública da equipe -> avisa o cliente.
- * Resposta do cliente -> avisa o responsável (se houver).
+ * Resposta pública da equipe -> e-mail para o cliente (ele pode responder o e-mail).
+ * Resposta do cliente -> e-mail para o responsável (se houver).
  */
 const notificaNovaResposta = async ({ interacaoId }) => {
+  const { avisos } = await obtemConfigEmail();
   const interacao = await Interacao.findById(interacaoId).populate('autor', 'nome papel').lean();
   if (!interacao) return;
 
   const chamado = await Chamado.findById(interacao.chamado).populate(POPULA_CHAMADO).lean();
   if (!chamado) return;
 
-  const destinatario = ehEquipe(interacao.autor) ? chamado.solicitante : chamado.responsavel;
-  if (!destinatario) {
+  const daEquipe = ehEquipe(interacao.autor);
+  if (daEquipe ? !avisos.respostaParaCliente : !avisos.respostaParaResponsavel) return;
+  const destinatario = daEquipe ? chamado.solicitante : chamado.responsavel;
+  if (!destinatario?.email) {
     logger.debug(`Chamado #${chamado.numero} sem destinatário para notificar`);
     return;
   }
@@ -59,6 +75,8 @@ const notificaNovaResposta = async ({ interacaoId }) => {
     assunto: `[#${chamado.numero}] Nova resposta: ${chamado.titulo}`,
     template: 'nova-resposta',
     dados: { chamado, interacao, destinatario },
+    chamado: chamado.numero,
+    respondivel: daEquipe,
   });
 };
 

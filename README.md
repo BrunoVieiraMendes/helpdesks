@@ -8,7 +8,7 @@ Stack igual à do Cryptotrade: Node.js + Express + MongoDB (Mongoose) + Passport
 
 - Node.js 18+
 - MongoDB
-- Redis (para as filas de e-mail e o fechamento automático)
+- Redis (opcional: filas com novas tentativas de envio e o fechamento automático)
 
 ## Instalação
 
@@ -29,7 +29,7 @@ npm run maildev           # opcional: caixa de e-mails em http://localhost:1080
 
 Acesse http://localhost:3000. A documentação da API fica em http://localhost:3000/v1/docs.
 
-Sem Redis? Use `WORKERS_ATIVOS=false` no `.env`. Tudo continua funcionando, mas sem os e-mails e sem o fechamento automático.
+Sem Redis? Use `WORKERS_ATIVOS=false` no `.env`. Tudo continua funcionando, inclusive os e-mails (enviados direto, em segundo plano); só o fechamento automático fica parado.
 
 ## Usuários de teste (senha `helpdesk123`)
 
@@ -51,7 +51,7 @@ Sem Redis? Use `WORKERS_ATIVOS=false` no `.env`. Tudo continua funcionando, mas 
 | `/portal`                    | cliente: Meus Chamados                                                                       |
 | `/chamados/novo`             | todos: catálogo de serviços + formulário. A equipe pode abrir em nome de um cliente          |
 | `/agente`                    | equipe: Lista com filtros combinados (ficam salvos na URL)                                   |
-| `/agente/kanban`             | equipe: arrastar e soltar entre status                                                       |
+| `/agente/quadro`             | equipe: quadro de chamados (arrastar e soltar entre status)                                  |
 | `/chamados/:numero`          | chamado no layout do Movidesk: painel Público/Interno, editor de ações e histórico           |
 | `/admin`                     | admin: painel de configurações (busca, visão por grupo ou A-Z, números da conta)             |
 | `/admin/configuracoes#secao` | admin: cada cadastro/parâmetro (pessoas, empresas, equipes, SLA, macros...)                  |
@@ -79,6 +79,28 @@ Todo gráfico tem tooltip e o botão **Ver tabela**. O acesso depende da permiss
 
 Para ver os gráficos cheios num banco de teste, `npm run demo:relatorios` cria 400 chamados históricos com a tag "Demonstração" (`npm run demo:relatorios -- --quantidade 800 --dias 180` para mais; `npm run demo:relatorios -- --remover` apaga todos). Não roda com `NODE_ENV=production`.
 
+## E-mail
+
+Em **Configurações > E-mail** (só admin):
+
+- **Envio (SMTP).** Conta usada para os avisos. Há atalhos para Gmail e Outlook/Microsoft 365, e o botão **Testar envio**. Enquanto essa conta não estiver ativada, valem as variáveis `EMAIL_*` do `.env` (por exemplo, o maildev em desenvolvimento).
+- **Avisos**, cada um com uma chave para ligar ou desligar:
+  - novo chamado para cada agente da equipe;
+  - confirmação de abertura para o cliente;
+  - resposta da equipe para o cliente (inclusive a resposta de solução);
+  - resposta do cliente para o responsável.
+- **Chamados por e-mail (IMAP).** O Help Desk lê a caixa de entrada no intervalo configurado, ou na hora, com **Verificar caixa agora**. O que acontece com cada mensagem:
+  - E-mail **sem** `[#número]` no assunto abre um chamado no **serviço padrão**, e a descrição é o texto do e-mail. O chamado mostra "Ticket aberto via e-mail".
+  - Resposta com `[#1024]` no assunto, de quem pode ver o chamado, entra como resposta no chamado. Só a parte nova é gravada: o histórico citado ("Responda acima desta linha", "Em ..., Fulano escreveu:", linhas com `>`) é cortado.
+  - Remetente sem cadastro é cadastrado como cliente automaticamente. Isso pode ser desligado; nesse caso o e-mail é ignorado.
+  - Os e-mails enviados aos clientes saem com **Responder para** a caixa de atendimento. Assim, basta o cliente responder.
+  - Para não criar laços, são **ignorados**: respostas automáticas (férias), devoluções (mailer-daemon), e-mails em massa, e-mails do próprio Help Desk e e-mails de agentes sem número de chamado. Os e-mails enviados saem marcados como automáticos.
+  - Cada mensagem é processada **uma vez só**, pelo Message-ID. O **log dos e-mails recebidos** mostra o resultado de cada uma por 90 dias.
+  - **Simular e-mail recebido** processa um e-mail colado, para testar sem uma caixa real.
+- As senhas das contas ficam **criptografadas** no banco (AES-256-GCM, chave `CHAVE_CRIPTOGRAFIA` do `.env`) e nunca voltam para a tela.
+- `LEITURA_DE_EMAIL=false` desliga a leitura automática.
+- Anexos ainda não são importados. O chamado registra quantos havia.
+
 ## Notificações
 
 O **sino** na barra do topo (agentes e admins) avisa quando um chamado é **aberto** ou **transferido** para uma equipe da qual a pessoa faz parte. Quem fez a ação não recebe o próprio aviso.
@@ -86,7 +108,7 @@ O **sino** na barra do topo (agentes e admins) avisa quando um chamado é **aber
 - Mostra um contador de não lidas, que também aparece no título da aba, por exemplo "(2) Início". Clicar no sino abre a lista das 20 mais recentes, e cada item leva ao chamado.
 - A lista é consultada a cada 30 segundos enquanto a aba está visível. O que chega de novo aparece como aviso na tela. Com a aba em segundo plano, aparece como **notificação da área de trabalho**, depois que a pessoa clica em "Ativar notificações na área de trabalho" e permite no navegador.
 - Abrir o chamado marca as notificações dele como lidas. Também dá para "Marcar todas como lidas".
-- Funciona sem Redis. O e-mail para a equipe continua indo pela fila de notificações quando os workers estão ativos.
+- Funciona sem Redis.
 - As notificações são apagadas automaticamente depois de 90 dias.
 - API: `GET /v1/notificacoes`, `POST /v1/notificacoes/{id}/lida` e `POST /v1/notificacoes/lidas` (aceita `{ chamado }` para marcar só as de um chamado).
 
@@ -155,6 +177,9 @@ Cada agente ou cliente pode ter um perfil. Quem não tem usa o **perfil padrão*
 A API valida cada permissão (403) e as telas escondem ou desabilitam o que o perfil não libera.
 
 ## Regras de negócio
+
+- **Resolver exige resposta:** mudar para Resolvido, ou Fechar um chamado ainda não resolvido, só com uma resposta ao cliente na mesma ação. Na API, é o campo `resposta` do `PATCH /v1/chamados/{numero}`; sem ele, a API devolve 422. No quadro e na tela do chamado, abre uma janela pedindo a resposta. A resposta é publicada no chamado e enviada por e-mail ao cliente. Macros que resolvem usam a própria mensagem pública.
+- **Busca rápida:** o campo da barra do topo (atalho `/` ou `Ctrl+K`) acha chamados por número ou assunto. Um número abre o chamado direto.
 
 - **RBAC:** o cliente só vê os próprios chamados (ou os da empresa, se o perfil permitir). Se tentar abrir o de outra pessoa, recebe 404. Agentes veem **somente a fila das suas equipes** (os de outras equipes dão 404) e podem **encaminhar** um chamado para outra equipe, com uma confirmação antes; depois disso deixam de vê-lo. O admin tem acesso total, inclusive para administrar equipes, serviços, pessoas e demais cadastros. O restante do que cada um pode fazer vem do perfil de acesso.
 - **Status:** Novo, Em Atendimento, Pendente, Resolvido e Fechado. As transições permitidas estão em `constants.js`. Um chamado não volta para "Novo".

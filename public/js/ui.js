@@ -224,6 +224,77 @@ var Ui = (function () {
     });
   }
 
+  /**
+   * Pede a resposta ao cliente para resolver/fechar (e a justificativa, se o status tiver).
+   * O botão só libera com a resposta preenchida. Resolve { resposta, justificativa } ou null.
+   * @param {{ titulo: string, texto?: string, confirmar?: string, justificativas?: { valor: string, rotulo: string }[] }} cfg
+   */
+  function pedeResposta(cfg) {
+    return new Promise(function (resolve) {
+      var motivos = cfg.justificativas || [];
+      var dialogo = document.createElement('dialog');
+      dialogo.className = 'modal modal-resposta';
+      dialogo.innerHTML =
+        '<form method="dialog" novalidate><h2>' +
+        esc(cfg.titulo) +
+        '</h2>' +
+        (cfg.texto ? '<p class="suave" style="margin-top:-8px">' + esc(cfg.texto) + '</p>' : '') +
+        '<div class="campo"><label for="resposta-cliente">Resposta ao cliente <span class="obrigatorio">*</span></label>' +
+        '<textarea id="resposta-cliente" rows="6" maxlength="20000" placeholder="Explique a solução para o cliente..."></textarea>' +
+        '<span class="ajuda">Publicada no chamado e enviada por e-mail ao cliente.</span></div>' +
+        (motivos.length
+          ? '<div class="campo"><label for="resposta-justificativa">Justificativa</label><select id="resposta-justificativa">' +
+            opcoes(motivos, '', 'Selecione...') +
+            '</select></div>'
+          : '') +
+        '<div class="acoes-form"><button class="botao" type="button" data-cancelar>Cancelar</button>' +
+        '<button class="botao primario" type="submit" disabled>' +
+        esc(cfg.confirmar || 'Responder e resolver') +
+        '</button></div></form>';
+      document.body.appendChild(dialogo);
+
+      var texto = dialogo.querySelector('textarea');
+      var select = dialogo.querySelector('select');
+      var botao = dialogo.querySelector('[type=submit]');
+      var encerrado = false;
+      function atualiza() {
+        botao.disabled = !texto.value.trim() || Boolean(select && !select.value);
+      }
+      function encerra(valor) {
+        if (encerrado) return;
+        encerrado = true;
+        if (dialogo.open) dialogo.close();
+        dialogo.remove();
+        resolve(valor);
+      }
+      texto.addEventListener('input', atualiza);
+      if (select) select.addEventListener('change', atualiza);
+      texto.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !botao.disabled) {
+          dialogo.querySelector('form').requestSubmit();
+        }
+      });
+      dialogo.querySelector('[data-cancelar]').addEventListener('click', function () {
+        encerra(null);
+      });
+      dialogo.querySelector('form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (botao.disabled) return;
+        encerra({ resposta: texto.value.trim(), justificativa: select ? select.value : undefined });
+      });
+      dialogo.addEventListener('close', function () {
+        encerra(null);
+      });
+      dialogo.showModal();
+      texto.focus();
+    });
+  }
+
+  /** Resolver, ou fechar um chamado ainda não resolvido, exige resposta ao cliente. */
+  function exigeResposta(de, para) {
+    return para === 'resolvido' || (para === 'fechado' && de !== 'resolvido');
+  }
+
   function carregando(texto) {
     return (
       '<div class="estado"><div class="spinner"></div><span>' +
@@ -336,7 +407,7 @@ var Ui = (function () {
   // ícones de traço do menu lateral
   var ICONES_MENU = {
     inicio: '<path d="M3 11 12 4l9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/>',
-    fila: '<path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/>',
+    fila: '<path d="M4 13v-1a8 8 0 0 1 16 0v1"/><rect x="3" y="12.5" width="4" height="6" rx="1.5"/><rect x="17" y="12.5" width="4" height="6" rx="1.5"/><path d="M19 18.5v.5a3 3 0 0 1-3 3h-2.5"/><rect x="10.5" y="20.8" width="3" height="2.4" rx="1.2"/>',
     relatorios: '<path d="M3 17l5-6 4 4 8-9"/><path d="M15 6h5v5"/>',
     kanban:
       '<rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="10" rx="1"/><rect x="17" y="4" width="4" height="13" rx="1"/>',
@@ -399,8 +470,12 @@ var Ui = (function () {
             icone: 'fila',
             ativo: aba === 'lista' || area === 'chamado',
           },
-          { href: '/agente/kanban', texto: 'Kanban', icone: 'kanban', ativo: aba === 'kanban' },
-          { href: '/chamados/novo', texto: 'Novo chamado', icone: 'novo', ativo: aba === 'novo' },
+          {
+            href: '/agente/quadro',
+            texto: 'Quadro de chamados',
+            icone: 'kanban',
+            ativo: aba === 'kanban',
+          },
         ].concat(
           Api.pode(usuario, 'verRelatorios')
             ? [
@@ -482,6 +557,7 @@ var Ui = (function () {
     // equipe: abas das páginas abertas; cliente: nome da central
     if (equipe) Abas.abre(null, { admin: admin });
     if (equipe && window.Notificacoes) Notificacoes.inicia();
+    if (window.BuscaGlobal) BuscaGlobal.inicia(usuario);
     else $('#abas').innerHTML = '<span class="titulo-topo">Central de atendimento</span>';
   }
 
@@ -537,6 +613,8 @@ var Ui = (function () {
     sla: sla,
     estrelas: estrelas,
     escolhe: escolhe,
+    pedeResposta: pedeResposta,
+    exigeResposta: exigeResposta,
     iniciais: iniciais,
     carregando: carregando,
     vazio: vazio,

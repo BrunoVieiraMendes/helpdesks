@@ -9,6 +9,7 @@ require('./routes/v1/auth/jwt');
 
 const { logger, normalizaErro } = require('./utils');
 const { connect, preencheCodigosDosCadastros } = require('./models');
+const { iniciaLeituraDeEmails } = require('./services');
 const { agendaTarefas } = require('./workers');
 const { workersAtivos, desativaFilas } = require('./workers/filas');
 const router = require('./routes');
@@ -93,6 +94,8 @@ const inicia = async () => {
   });
 
   iniciaWorkers();
+  // chamados por e-mail: lê a caixa IMAP configurada em Configurações > E-mail
+  iniciaLeituraDeEmails();
 };
 
 // só sobe o servidor quando executado diretamente (permite importar o app em testes)

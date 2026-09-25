@@ -807,7 +807,8 @@
       '<h1>' +
       Ui.esc(c.titulo) +
       '</h1>' +
-      '<p class="subtitulo-chamado">Ticket aberto via sistema ' +
+      '<p class="subtitulo-chamado">Ticket aberto via ' +
+      (c.origem === 'email' ? 'e-mail ' : 'sistema ') +
       (c.solicitante ? 'pelo cliente <strong>' + Ui.esc(c.solicitante.nome) + '</strong> ' : '') +
       'em ' +
       Ui.data(c.createdAt) +
@@ -1153,6 +1154,26 @@
         var corpo = {};
         corpo[s.name] = s.value || null;
 
+        if (s.name === 'status' && Ui.exigeResposta(estado.chamado.status, s.value)) {
+          // resolver/fechar só respondendo o cliente
+          var para = s.value;
+          s.value = estado.chamado.status;
+          var respondido = await Ui.pedeResposta({
+            titulo: (para === 'resolvido' ? 'Resolver' : 'Fechar') + ' o chamado #' + numero,
+            texto:
+              'Para ' + (para === 'resolvido' ? 'resolver' : 'fechar') + ', responda o cliente.',
+            confirmar: para === 'resolvido' ? 'Responder e resolver' : 'Responder e fechar',
+            justificativas: justificativasPara(para).map(function (j) {
+              return { valor: j._id, rotulo: j.nome };
+            }),
+          });
+          if (!respondido) return;
+          corpo.status = para;
+          corpo.resposta = respondido.resposta;
+          if (respondido.justificativa) corpo.justificativa = respondido.justificativa;
+          altera(corpo, para === 'resolvido' ? 'Chamado resolvido' : 'Chamado fechado');
+          return;
+        }
         if (s.name === 'status') {
           var escolhida = await perguntaJustificativa(s.value);
           if (escolhida === null) {
@@ -1334,6 +1355,18 @@
         return;
       }
 
+      // resolver/fechar junto com a ação: a própria resposta (pública) é a resposta ao cliente
+      var resolveCom = novoStatus && Ui.exigeResposta(estado.chamado.status, novoStatus);
+      if (resolveCom && estado.modo === 'interna') {
+        Ui.toast(
+          'Para ' +
+            HD.rotulosStatus[novoStatus].toLowerCase() +
+            ', envie uma ação pública (resposta ao cliente).',
+          'erro',
+        );
+        return;
+      }
+
       // status junto com a ação: a justificativa é perguntada antes de enviar
       var corpoStatus = null;
       if (novoStatus) {
@@ -1347,6 +1380,10 @@
       try {
         if (macro) {
           await Api.post('/chamados/' + numero + '/macros/' + macro._id, { mensagem: texto });
+        } else if (resolveCom) {
+          // uma chamada só: muda o status e publica a resposta
+          await Api.patch('/chamados/' + numero, Object.assign({ resposta: texto }, corpoStatus));
+          corpoStatus = null;
         } else {
           await Api.post('/chamados/' + numero + '/interacoes', {
             mensagem: texto,

@@ -1,7 +1,9 @@
-<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#1f2937">
-  <h2 style="color:#2458d6">Novo chamado na fila <%= chamado.equipe.nome %></h2>
-  <p><strong>#<%= chamado.numero %> · <%= chamado.titulo %></strong></p>
-  <p>Solicitante: <%= chamado.solicitante.nome %><br />Serviço: <%= chamado.servico ? chamado.servico.nome : '—' %></p>
-  <blockquote style="border-left:3px solid #2458d6;margin:0;padding:8px 12px;background:#f3f4f6;white-space:pre-wrap"><%= chamado.descricao %></blockquote>
-  <p><a href="<%= urlDoHelpdesk %>/chamados/<%= chamado.numero %>" style="background:#2458d6;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none">Abrir chamado</a></p>
+<div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:auto;color:#1f2430;line-height:1.5">
+  <div style="border-top:4px solid #f97316;padding:20px 24px;background:#ffffff">
+    <h2 style="margin:0 0 12px;color:#c2410c">Novo chamado na fila <%= chamado.equipe.nome %></h2>
+    <p style="margin:0 0 4px"><strong>#<%= chamado.numero %> · <%= chamado.titulo %></strong></p>
+    <p style="margin:0 0 12px;color:#5b6472">Cliente: <%= chamado.solicitante.nome %> · Serviço: <%= chamado.servico ? chamado.servico.nome : '—' %> · Urgência: <%= rotuloUrgencia %></p>
+    <div style="border-left:3px solid #f97316;margin:0 0 16px;padding:10px 14px;background:#fff7ed;white-space:pre-wrap"><%= chamado.descricao %></div>
+    <p><a href="<%= urlDoHelpdesk %>/chamados/<%= chamado.numero %>" style="background:#c2410c;color:#fff;padding:11px 18px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block">Abrir chamado</a></p>
+  </div>
 </div>

@@ -1,5 +1,8 @@
 const createError = require('http-errors');
 
+const { STATUS, TIPOS_INTERACAO } = require('../constants');
+const { erroDeValidacao } = require('../utils');
+
 const { Chamado, Macro } = require('../models');
 const { idValido } = require('./valida-referencias');
 const { pode } = require('./permissoes');
@@ -46,10 +49,23 @@ const aplicaMacro = async (chamado, macroId, dados, usuario) => {
   if (!macro) throw createError(404, 'Macro não encontrada ou inativa');
 
   const campos = camposDaMacro(macro.acoes, chamado, usuario);
+  const mensagem = String(dados.mensagem ?? macro.mensagem ?? '').trim();
+
+  // macro que resolve/fecha: a própria mensagem (pública) é a resposta exigida
+  const resolve =
+    campos.status === STATUS.RESOLVIDO ||
+    (campos.status === STATUS.FECHADO && chamado.status !== STATUS.RESOLVIDO);
+  if (resolve) {
+    if (macro.tipo !== TIPOS_INTERACAO.PUBLICA || !mensagem) {
+      throw erroDeValidacao({
+        mensagem: 'Esta macro resolve o chamado: escreva a resposta pública ao cliente',
+      });
+    }
+    campos.resposta = mensagem;
+  }
   if (Object.keys(campos).length) await atualizaChamado(chamado, campos, usuario);
 
-  const mensagem = String(dados.mensagem ?? macro.mensagem ?? '').trim();
-  if (mensagem) {
+  if (mensagem && !resolve) {
     const atual = await Chamado.findById(chamado._id).lean();
     await adicionaInteracao(atual, { mensagem, tipo: macro.tipo }, usuario);
   }

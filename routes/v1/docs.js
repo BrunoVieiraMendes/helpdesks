@@ -395,6 +395,12 @@ const schemas = {
       categoria: { ...id, nullable: true },
       servico: { ...id, description: 'trocar o serviço move o chamado para a equipe dele' },
       equipe: { ...id, description: 'transferência de equipe' },
+      resposta: {
+        type: 'string',
+        maxLength: 20000,
+        description:
+          'obrigatória ao resolver (ou fechar um chamado ainda não resolvido): resposta pública ao cliente, enviada por e-mail',
+      },
       motivoEncaminhamento: {
         type: 'string',
         maxLength: 2000,

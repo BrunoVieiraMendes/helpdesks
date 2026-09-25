@@ -23,6 +23,8 @@ const CampoAdicionalSchema = require('./campo-adicional');
 const RegraExibicaoSchema = require('./regra-exibicao');
 const AvisoSchema = require('./aviso');
 const NotificacaoSchema = require('./notificacao');
+const ConfiguracaoEmailSchema = require('./configuracao-email');
+const EmailRecebidoSchema = require('./email-recebido');
 const { codigoSequencial, preencheCodigos } = require('./plugins/codigo');
 
 // cadastros com "Id" numérico nas listas do painel (antes de compilar os models)
@@ -65,6 +67,12 @@ const CampoAdicional = mongoose.model('CampoAdicional', CampoAdicionalSchema, 'c
 const RegraExibicao = mongoose.model('RegraExibicao', RegraExibicaoSchema, 'regrasexibicao');
 const Aviso = mongoose.model('Aviso', AvisoSchema);
 const Notificacao = mongoose.model('Notificacao', NotificacaoSchema, 'notificacoes');
+const ConfiguracaoEmail = mongoose.model(
+  'ConfiguracaoEmail',
+  ConfiguracaoEmailSchema,
+  'configuracoesdeemail',
+);
+const EmailRecebido = mongoose.model('EmailRecebido', EmailRecebidoSchema, 'emailsrecebidos');
 
 // nomes usados pelos scripts de índices e pelo seed
 const NOMES_DOS_MODELS = [
@@ -88,6 +96,8 @@ const NOMES_DOS_MODELS = [
   'RegraExibicao',
   'Aviso',
   'Notificacao',
+  'ConfiguracaoEmail',
+  'EmailRecebido',
 ];
 
 /**
@@ -131,4 +141,6 @@ module.exports = {
   RegraExibicao,
   Aviso,
   Notificacao,
+  ConfiguracaoEmail,
+  EmailRecebido,
 };

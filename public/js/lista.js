@@ -29,7 +29,7 @@
       nome: 'Tickets não atribuídos',
       filtros: { responsavel: 'nenhum', status: ABERTOS },
     },
-    { id: 'kanban', nome: 'Todos os tickets não resolvidos - Kanban', href: '/agente/kanban' },
+    { id: 'quadro', nome: 'Todos os tickets não resolvidos - Quadro', href: '/agente/quadro' },
     {
       id: 'parados',
       nome: 'Tickets parados sob minha responsabilidade',
@@ -571,7 +571,7 @@
     var opcao = b.getAttribute('data-opcao');
     if (opcao === 'assumir') assumeSelecionados();
     if (opcao === 'salvar') salvaVisao();
-    if (opcao === 'kanban') window.location.href = '/agente/kanban' + window.location.search;
+    if (opcao === 'kanban') window.location.href = '/agente/quadro' + window.location.search;
     if (opcao === 'limpar') limpaTudo();
   });
 

@@ -2607,6 +2607,461 @@
     );
   }
 
+  // ================================================================ E-MAIL
+  // Envio (SMTP), recebimento (IMAP: chamados por e-mail), avisos e o log dos e-mails recebidos.
+  var PROVEDORES = {
+    gmail: {
+      rotulo: 'Gmail / Google Workspace',
+      envio: { host: 'smtp.gmail.com', porta: 587, seguranca: 'starttls' },
+      recebimento: { host: 'imap.gmail.com', porta: 993, ssl: true },
+      dica: 'No Google, use uma "senha de app" (Conta Google > Segurança > Senhas de app).',
+    },
+    outlook: {
+      rotulo: 'Outlook / Microsoft 365',
+      envio: { host: 'smtp.office365.com', porta: 587, seguranca: 'starttls' },
+      recebimento: { host: 'outlook.office365.com', porta: 993, ssl: true },
+      dica: 'No Microsoft 365, o SMTP autenticado e o IMAP precisam estar liberados para a caixa.',
+    },
+  };
+  var ROTULOS_RESULTADO = {
+    'novo-chamado': ['Chamado aberto', 'ok'],
+    resposta: ['Resposta', 'ok'],
+    ignorado: ['Ignorado', 'neutro'],
+    duplicado: ['Já processado', 'neutro'],
+    erro: ['Erro', 'falha'],
+    processando: ['Processando', 'neutro'],
+  };
+
+  var EXEMPLO_EMAIL =
+    'From: Cliente Exemplo <cliente@exemplo.com>\n' +
+    'To: suporte@suaempresa.com\n' +
+    'Subject: Não consigo emitir a nota fiscal\n' +
+    'Message-ID: <exemplo-' +
+    Date.now() +
+    '@exemplo.com>\n' +
+    'Content-Type: text/plain; charset=utf-8\n\n' +
+    'Olá, desde ontem aparece um erro ao emitir a nota fiscal.\n' +
+    'Podem ajudar?\n';
+
+  function campoTexto(nome, rotulo, valor, extra) {
+    extra = extra || {};
+    return (
+      '<div class="campo' +
+      (extra.classe ? ' ' + extra.classe : '') +
+      '"><label for="em-' +
+      nome.replace(/\W/g, '-') +
+      '">' +
+      rotulo +
+      '</label><input id="em-' +
+      nome.replace(/\W/g, '-') +
+      '" name="' +
+      nome +
+      '" type="' +
+      (extra.tipo || 'text') +
+      '" value="' +
+      Ui.esc(valor === null || valor === undefined ? '' : valor) +
+      '"' +
+      (extra.placeholder ? ' placeholder="' + Ui.esc(extra.placeholder) + '"' : '') +
+      (extra.atributos || '') +
+      ' />' +
+      (extra.ajuda ? '<span class="ajuda">' + extra.ajuda + '</span>' : '') +
+      '</div>'
+    );
+  }
+
+  function campoSenha(nome, definida) {
+    return campoTexto(nome, 'Senha', '', {
+      tipo: 'password',
+      placeholder: definida
+        ? '•••••••• (definida — deixe em branco para manter)'
+        : 'Senha da conta',
+      atributos: ' autocomplete="new-password"',
+      ajuda: definida ? 'A senha fica guardada criptografada e nunca é exibida.' : '',
+    });
+  }
+
+  function interruptorEmail(nome, rotulo, marcado, ajuda) {
+    return (
+      '<label class="linha-aviso-email"><span class="interruptor-email"><input type="checkbox" name="' +
+      nome +
+      '"' +
+      (marcado ? ' checked' : '') +
+      ' /><span class="trilho-email" aria-hidden="true"></span></span><span><strong>' +
+      rotulo +
+      '</strong>' +
+      (ajuda ? '<span class="suave">' + ajuda + '</span>' : '') +
+      '</span></label>'
+    );
+  }
+
+  function selo(ok, textoOk, textoNao) {
+    return (
+      '<span class="selo-email ' +
+      (ok ? 'ok' : 'off') +
+      '">' +
+      (ok ? textoOk : textoNao) +
+      '</span>'
+    );
+  }
+
+  function linhaLogEmail(e) {
+    var r = ROTULOS_RESULTADO[e.resultado] || [e.resultado, 'neutro'];
+    return (
+      '<tr><td class="data-log">' +
+      Ui.data(e.createdAt) +
+      '</td><td>' +
+      Ui.esc(e.nome || e.de) +
+      '<div class="suave pequeno">' +
+      Ui.esc(e.nome ? e.de : '') +
+      '</div></td><td class="assunto-log">' +
+      Ui.esc(e.assunto || '(sem assunto)') +
+      '</td><td><span class="chip-resultado ' +
+      r[1] +
+      '">' +
+      r[0] +
+      '</span></td><td>' +
+      (e.numero ? '<a href="/chamados/' + e.numero + '">#' + e.numero + '</a>' : '—') +
+      '</td><td class="suave detalhe-log-email">' +
+      Ui.esc(e.detalhe || '') +
+      '</td></tr>'
+    );
+  }
+
+  async function carregaLogEmail(pagina) {
+    var alvo = Ui.$('#log-email');
+    if (!alvo) return;
+    try {
+      var r = await Api.get('/configuracoes/email/recebidos', {
+        pagina: pagina || 1,
+        porPagina: 15,
+      });
+      alvo.innerHTML = r.emails.length
+        ? '<div class="tabela-container"><table class="admin-tabela tabela-log-email"><thead><tr><th>Recebido em</th><th>De</th><th>Assunto</th><th>Resultado</th><th>Chamado</th><th>Detalhe</th></tr></thead><tbody>' +
+          r.emails.map(linhaLogEmail).join('') +
+          '</tbody></table></div><div class="paginacao" id="paginacao-log-email"></div>'
+        : Ui.vazio(
+            'Nenhum e-mail recebido ainda',
+            'Quando a caixa de entrada for lida, cada e-mail aparece aqui com o que aconteceu com ele.',
+          );
+      var pag = Ui.$('#paginacao-log-email');
+      if (pag) Ui.paginacao(pag, r.paginacao, carregaLogEmail);
+    } catch (e) {
+      alvo.innerHTML = Ui.erro(e.message);
+    }
+  }
+
+  function descricaoRecebimento(r) {
+    if (!r.ativo) return 'Desativado';
+    if (r.ultimoErro) return 'Erro na última leitura: ' + r.ultimoErro;
+    return r.ultimaVerificacao
+      ? 'Lida ' + Ui.relativo(r.ultimaVerificacao)
+      : 'Aguardando a primeira leitura';
+  }
+
+  async function secaoEmail() {
+    barra.innerHTML = '';
+    var resp = await Promise.all([Api.get('/configuracoes/email'), Api.get('/servicos')]);
+    var c = resp[0].email;
+    var servicos = resp[1].servicos;
+    var env = c.envio;
+    var rec = c.recebimento;
+    var av = c.avisos;
+
+    conteudo.innerHTML =
+      '<div class="grade-email">' +
+      '<form class="formulario-email" id="form-email" novalidate autocomplete="off">' +
+      '<div class="aviso-form"></div>' +
+      // provedor
+      '<section class="cartao bloco-email"><div class="cabeca-bloco-email"><h2>Provedor</h2>' +
+      '<p class="suave">Preenche servidores, portas e segurança dos provedores mais comuns.</p></div>' +
+      '<div class="linha-provedor"><select id="provedor-email" aria-label="Provedor de e-mail"><option value="">Escolha para preencher...</option>' +
+      Object.keys(PROVEDORES)
+        .map(function (k) {
+          return '<option value="' + k + '">' + PROVEDORES[k].rotulo + '</option>';
+        })
+        .join('') +
+      '</select><span class="suave" id="dica-provedor"></span></div></section>' +
+      // envio
+      '<section class="cartao bloco-email"><div class="cabeca-bloco-email"><h2>Envio de e-mails (SMTP) ' +
+      selo(env.ativo, 'Ativo', c.envioPeloEnv ? 'Usando o .env' : 'Desativado') +
+      '</h2><p class="suave">Conta usada para avisar a equipe e responder os clientes.</p></div>' +
+      interruptorEmail('envio.ativo', 'Enviar e-mails por esta conta', env.ativo) +
+      '<div class="grade-campos-email">' +
+      campoTexto('envio.host', 'Servidor SMTP', env.host, {
+        placeholder: 'smtp.suaempresa.com',
+        classe: 'largo',
+      }) +
+      campoTexto('envio.porta', 'Porta', env.porta, {
+        tipo: 'number',
+        atributos: ' min="1" max="65535"',
+      }) +
+      '<div class="campo"><label for="em-envio-seguranca">Segurança</label><select id="em-envio-seguranca" name="envio.seguranca">' +
+      Ui.opcoes(
+        [
+          { valor: 'starttls', rotulo: 'STARTTLS (porta 587)' },
+          { valor: 'ssl', rotulo: 'SSL/TLS (porta 465)' },
+          { valor: 'nenhuma', rotulo: 'Nenhuma (só rede interna)' },
+        ],
+        env.seguranca,
+      ) +
+      '</select></div>' +
+      campoTexto('envio.usuario', 'Usuário', env.usuario, {
+        placeholder: 'suporte@suaempresa.com',
+        atributos: ' autocomplete="off"',
+      }) +
+      campoSenha('envio.senha', env.senhaDefinida) +
+      campoTexto('envio.remetenteNome', 'Nome do remetente', env.remetenteNome, {
+        placeholder: 'Suporte da Sua Empresa',
+      }) +
+      campoTexto('envio.remetenteEmail', 'E-mail do remetente', env.remetenteEmail, {
+        tipo: 'email',
+        placeholder: 'suporte@suaempresa.com',
+      }) +
+      '</div></section>' +
+      // recebimento
+      '<section class="cartao bloco-email"><div class="cabeca-bloco-email"><h2>Chamados por e-mail (IMAP) ' +
+      selo(rec.ativo, 'Ativo', 'Desativado') +
+      '</h2><p class="suave">O Help Desk lê esta caixa de entrada: cada e-mail novo vira um chamado e as respostas (com [#número] no assunto) entram no chamado certo.</p></div>' +
+      interruptorEmail('recebimento.ativo', 'Ler esta caixa e abrir chamados', rec.ativo) +
+      '<div class="grade-campos-email">' +
+      campoTexto('recebimento.host', 'Servidor IMAP', rec.host, {
+        placeholder: 'imap.suaempresa.com',
+        classe: 'largo',
+      }) +
+      campoTexto('recebimento.porta', 'Porta', rec.porta, {
+        tipo: 'number',
+        atributos: ' min="1" max="65535"',
+      }) +
+      '<div class="campo campo-check-email"><label class="checkbox-linha"><input type="checkbox" name="recebimento.ssl"' +
+      (rec.ssl ? ' checked' : '') +
+      ' /> Conexão segura (SSL/TLS)</label></div>' +
+      campoTexto('recebimento.usuario', 'Usuário', rec.usuario, {
+        placeholder: 'suporte@suaempresa.com',
+        atributos: ' autocomplete="off"',
+      }) +
+      campoSenha('recebimento.senha', rec.senhaDefinida) +
+      campoTexto('recebimento.pasta', 'Pasta', rec.pasta, { placeholder: 'INBOX' }) +
+      campoTexto('recebimento.endereco', 'Endereço de atendimento', rec.endereco, {
+        tipo: 'email',
+        placeholder: 'suporte@suaempresa.com',
+        ajuda:
+          'Vai no "Responder para" dos e-mails, para as respostas dos clientes voltarem para esta caixa. Vazio = o usuário acima.',
+        classe: 'largo',
+      }) +
+      '<div class="campo largo"><label for="em-servico-padrao">Serviço dos chamados abertos por e-mail</label><select id="em-servico-padrao" name="recebimento.servicoPadrao">' +
+      Ui.opcoes(
+        servicos.map(function (s) {
+          return { valor: s._id, rotulo: s.nome + (s.equipe ? ' (' + s.equipe.nome + ')' : '') };
+        }),
+        rec.servicoPadrao,
+        'Selecione...',
+      ) +
+      '</select><span class="ajuda">Define a equipe que recebe os chamados. A equipe pode reclassificar depois.</span></div>' +
+      campoTexto('recebimento.intervaloMinutos', 'Ler a cada (minutos)', rec.intervaloMinutos, {
+        tipo: 'number',
+        atributos: ' min="1" max="60"',
+      }) +
+      '<div class="campo campo-check-email largo"><label class="checkbox-linha"><input type="checkbox" name="recebimento.criarClientes"' +
+      (rec.criarClientes ? ' checked' : '') +
+      ' /> Cadastrar automaticamente quem ainda não é cliente</label><span class="ajuda">Desmarcado, e-mails de remetentes sem cadastro são ignorados (ficam no log).</span></div>' +
+      '</div></section>' +
+      // avisos
+      '<section class="cartao bloco-email"><div class="cabeca-bloco-email"><h2>Avisos por e-mail</h2>' +
+      '<p class="suave">Quem recebe e-mail em cada situação.</p></div>' +
+      '<div class="lista-avisos-email">' +
+      interruptorEmail(
+        'avisos.novoChamadoEquipe',
+        'Novo chamado para a equipe',
+        av.novoChamadoEquipe,
+        'Cada agente da equipe do chamado recebe um e-mail.',
+      ) +
+      interruptorEmail(
+        'avisos.confirmacaoCliente',
+        'Confirmação de abertura para o cliente',
+        av.confirmacaoCliente,
+        'Com o número do chamado para acompanhar.',
+      ) +
+      interruptorEmail(
+        'avisos.respostaParaCliente',
+        'Chamado respondido: avisar o cliente',
+        av.respostaParaCliente,
+        'Com a resposta completa. O cliente pode responder o próprio e-mail.',
+      ) +
+      interruptorEmail(
+        'avisos.respostaParaResponsavel',
+        'Cliente respondeu: avisar o responsável',
+        av.respostaParaResponsavel,
+      ) +
+      '</div></section>' +
+      '<div class="acoes-form rodape-form-email"><button class="botao primario" type="submit">Salvar configurações de e-mail</button></div>' +
+      '</form>' +
+      // coluna lateral: testes e simulação
+      '<aside class="lateral-email">' +
+      '<section class="cartao bloco-email"><h2>Situação</h2><ul class="situacao-email">' +
+      '<li><span>Envio</span><strong>' +
+      (env.ativo ? 'Conta configurada' : c.envioPeloEnv ? 'Variáveis do .env' : 'Desativado') +
+      '</strong></li><li><span>Caixa de entrada</span><strong' +
+      (rec.ultimoErro ? ' class="texto-perigo"' : '') +
+      '>' +
+      Ui.esc(descricaoRecebimento(rec)) +
+      '</strong></li></ul>' +
+      '<div class="campo"><label for="teste-para">Enviar e-mail de teste para</label><input id="teste-para" type="email" value="' +
+      Ui.esc(usuario.email) +
+      '" /></div>' +
+      '<div class="botoes-email"><button type="button" class="botao" id="testar-envio">Testar envio</button>' +
+      '<button type="button" class="botao" id="testar-recebimento">Testar recebimento</button>' +
+      '<button type="button" class="botao" id="verificar-agora">Verificar caixa agora</button></div>' +
+      '<p class="suave pequeno">Salve antes de testar: os testes usam a configuração salva.</p></section>' +
+      '<section class="cartao bloco-email"><h2>Simular e-mail recebido</h2>' +
+      '<p class="suave pequeno">Cole um e-mail completo (com cabeçalhos) para ver o que o Help Desk faria com ele. O resultado é real: um chamado pode ser aberto.</p>' +
+      '<textarea id="simular-email" rows="9" spellcheck="false">' +
+      Ui.esc(EXEMPLO_EMAIL) +
+      '</textarea><button type="button" class="botao" id="simular">Processar e-mail</button><div id="resultado-simulacao"></div></section>' +
+      '</aside></div>' +
+      '<section class="cartao bloco-email log-email-cartao"><div class="cabeca-bloco-email"><h2>E-mails recebidos</h2>' +
+      '<button type="button" class="botao pequeno" id="atualizar-log-email">Atualizar</button></div><div id="log-email">' +
+      Ui.carregando() +
+      '</div></section>';
+
+    var form = Ui.$('#form-email');
+
+    Ui.$('#provedor-email').addEventListener('change', function (e) {
+      var p = PROVEDORES[e.target.value];
+      if (!p) return;
+      form.elements['envio.host'].value = p.envio.host;
+      form.elements['envio.porta'].value = p.envio.porta;
+      form.elements['envio.seguranca'].value = p.envio.seguranca;
+      form.elements['recebimento.host'].value = p.recebimento.host;
+      form.elements['recebimento.porta'].value = p.recebimento.porta;
+      form.elements['recebimento.ssl'].checked = p.recebimento.ssl;
+      Ui.$('#dica-provedor').textContent = p.dica;
+    });
+
+    // a porta sugerida acompanha a segurança escolhida
+    form.elements['envio.seguranca'].addEventListener('change', function (e) {
+      var sugestao = { starttls: 587, ssl: 465, nenhuma: 25 }[e.target.value];
+      if (['587', '465', '25', ''].indexOf(form.elements['envio.porta'].value) !== -1) {
+        form.elements['envio.porta'].value = sugestao;
+      }
+    });
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      Ui.errosDeCampo(form, {});
+      var aviso = form.querySelector('.aviso-form');
+      aviso.innerHTML = '';
+      var v = function (n) {
+        return form.elements[n].value;
+      };
+      var marcado = function (n) {
+        return form.elements[n].checked;
+      };
+      var corpo = {
+        envio: {
+          ativo: marcado('envio.ativo'),
+          host: v('envio.host'),
+          porta: Number(v('envio.porta')),
+          seguranca: v('envio.seguranca'),
+          usuario: v('envio.usuario'),
+          remetenteNome: v('envio.remetenteNome'),
+          remetenteEmail: v('envio.remetenteEmail'),
+        },
+        recebimento: {
+          ativo: marcado('recebimento.ativo'),
+          host: v('recebimento.host'),
+          porta: Number(v('recebimento.porta')),
+          ssl: marcado('recebimento.ssl'),
+          usuario: v('recebimento.usuario'),
+          pasta: v('recebimento.pasta'),
+          endereco: v('recebimento.endereco'),
+          servicoPadrao: v('recebimento.servicoPadrao') || null,
+          intervaloMinutos: Number(v('recebimento.intervaloMinutos')),
+          criarClientes: marcado('recebimento.criarClientes'),
+        },
+        avisos: {
+          novoChamadoEquipe: marcado('avisos.novoChamadoEquipe'),
+          confirmacaoCliente: marcado('avisos.confirmacaoCliente'),
+          respostaParaCliente: marcado('avisos.respostaParaCliente'),
+          respostaParaResponsavel: marcado('avisos.respostaParaResponsavel'),
+        },
+      };
+      // senha só vai quando foi digitada (em branco mantém a atual)
+      if (v('envio.senha')) corpo.envio.senha = v('envio.senha');
+      if (v('recebimento.senha')) corpo.recebimento.senha = v('recebimento.senha');
+      var restaura = Ui.ocupado(form.querySelector('[type=submit]'), 'Salvando...');
+      try {
+        await Api.patch('/configuracoes/email', corpo);
+        Ui.toast('Configurações de e-mail salvas', 'sucesso');
+        await secaoEmail();
+      } catch (erro) {
+        restaura();
+        // campos de senha: o nome no formulário é "...senha"
+        Ui.errosDeCampo(form, erro.detalhes);
+        aviso.innerHTML = '<div class="alerta erro">' + Ui.esc(erro.message) + '</div>';
+        var primeiro = form.querySelector('.campo.invalido');
+        if (primeiro) primeiro.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+    });
+
+    async function acao(botao, texto, fn) {
+      var restaura = Ui.ocupado(botao, texto);
+      try {
+        await fn();
+      } catch (e) {
+        Ui.toast(e.detalhes ? Object.values(e.detalhes)[0] : e.message, 'erro');
+      } finally {
+        restaura();
+      }
+    }
+
+    Ui.$('#testar-envio').addEventListener('click', function (e) {
+      acao(e.currentTarget, 'Enviando...', async function () {
+        var r = await Api.post('/configuracoes/email/testar-envio', {
+          para: Ui.$('#teste-para').value,
+        });
+        Ui.toast('E-mail de teste enviado para ' + r.para, 'sucesso');
+      });
+    });
+    Ui.$('#testar-recebimento').addEventListener('click', function (e) {
+      acao(e.currentTarget, 'Conectando...', async function () {
+        var r = await Api.post('/configuracoes/email/testar-recebimento', {});
+        Ui.toast(
+          'Conectado! ' + r.mensagens + ' mensagem(ns), ' + r.naoLidas + ' não lida(s).',
+          'sucesso',
+        );
+      });
+    });
+    Ui.$('#verificar-agora').addEventListener('click', function (e) {
+      acao(e.currentTarget, 'Lendo...', async function () {
+        var r = await Api.post('/configuracoes/email/verificar-agora', {});
+        Ui.toast(r.lidas ? r.lidas + ' e-mail(s) processado(s)' : 'Nenhum e-mail novo', 'sucesso');
+        carregaLogEmail(1);
+      });
+    });
+    Ui.$('#simular').addEventListener('click', function (e) {
+      acao(e.currentTarget, 'Processando...', async function () {
+        var r = await Api.post('/configuracoes/email/simular', {
+          conteudo: Ui.$('#simular-email').value,
+        });
+        var rot = ROTULOS_RESULTADO[r.resultado] || [r.resultado, 'neutro'];
+        Ui.$('#resultado-simulacao').innerHTML =
+          '<div class="resultado-simulacao"><span class="chip-resultado ' +
+          rot[1] +
+          '">' +
+          rot[0] +
+          '</span> ' +
+          Ui.esc(r.detalhe || '') +
+          (r.numero ? ' <a href="/chamados/' + r.numero + '">Abrir #' + r.numero + '</a>' : '') +
+          '</div>';
+        carregaLogEmail(1);
+      });
+    });
+    Ui.$('#atualizar-log-email').addEventListener('click', function () {
+      carregaLogEmail(1);
+    });
+    carregaLogEmail(1);
+  }
+
   // ================================================================ seções e menu
   // campoAtivo/rota/rotulo/form só existem nos cadastros com Editar/Desativar/Remover
   var SECOES = {
@@ -2783,6 +3238,12 @@
       rota: '/macros',
       campoAtivo: 'ativa',
       rotulo: 'macro',
+    },
+    email: {
+      grupo: 'E-mail',
+      titulo: 'E-mail',
+      descricao: 'Envio de avisos e abertura de chamados por e-mail.',
+      carrega: secaoEmail,
     },
     pesquisa: {
       grupo: 'Atendimento',

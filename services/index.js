@@ -79,5 +79,10 @@ module.exports = {
   // tarefas assíncronas
   processaNotificacao: require('./notificacoes'),
   ...require('./notificacoes-do-sistema'),
+  configuracaoParaTela: require('./email-config').configuracaoParaTela,
+  atualizaConfigEmail: require('./email-config').atualizaConfigEmail,
+  processaEmailBruto: require('./email-entrada').processaEmailBruto,
+  listaEmailsRecebidos: require('./email-entrada').listaEmailsRecebidos,
+  ...require('./email-imap'),
   fechaResolvidos: require('./fecha-resolvidos'),
 };

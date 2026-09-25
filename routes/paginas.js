@@ -51,7 +51,15 @@ router.get('/inicio', pagina('inicio', 'Início', { area: 'inicio' }));
 router.get('/relatorios', pagina('relatorios', 'Indicadores e relatórios', { area: 'relatorios' }));
 router.get('/portal', pagina('portal/meus-chamados', 'Meus Chamados', { area: 'portal' }));
 router.get('/agente', pagina('agente/lista', 'Fila de Chamados', { area: 'agente', aba: 'lista' }));
-router.get('/agente/kanban', pagina('agente/kanban', 'Kanban', { area: 'agente', aba: 'kanban' }));
+router.get(
+  '/agente/quadro',
+  pagina('agente/kanban', 'Quadro de chamados', { area: 'agente', aba: 'kanban' }),
+);
+// endereço antigo (Kanban) continua funcionando
+router.get('/agente/kanban', (req, res) => {
+  const i = req.originalUrl.indexOf('?');
+  res.redirect(301, '/agente/quadro' + (i === -1 ? '' : req.originalUrl.slice(i)));
+});
 router.get('/admin', pagina('admin/painel', 'Configurações', { area: 'admin' }));
 router.get(
   '/admin/configuracoes',

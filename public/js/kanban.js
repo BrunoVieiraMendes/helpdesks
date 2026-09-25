@@ -191,7 +191,18 @@
     // status que exige motivo (ex.: Pendente): pergunta antes de mover
     var corpo = { status: para };
     var motivos = justificativasPara(para);
-    if (motivos.length) {
+    if (Ui.exigeResposta(de, para)) {
+      // resolver/fechar só respondendo o cliente
+      var respondido = await Ui.pedeResposta({
+        titulo: (para === 'resolvido' ? 'Resolver' : 'Fechar') + ' o chamado #' + numero,
+        texto: 'Para ' + (para === 'resolvido' ? 'resolver' : 'fechar') + ', responda o cliente.',
+        confirmar: para === 'resolvido' ? 'Responder e resolver' : 'Responder e fechar',
+        justificativas: motivos,
+      });
+      if (!respondido) return;
+      corpo.resposta = respondido.resposta;
+      if (respondido.justificativa) corpo.justificativa = respondido.justificativa;
+    } else if (motivos.length) {
       var escolhida = await Ui.escolhe({
         titulo: 'Mover #' + numero + ' para ' + HD.rotulosStatus[para],
         rotulo: 'Justificativa',
